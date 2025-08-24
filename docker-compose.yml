@@ -1,0 +1,37 @@
+version: '3'
+
+services:
+  fastapi:
+    build: .
+    depends_on:
+      - postgresdb
+    command: uvicorn main:app --host 0.0.0.0 --port 8080
+    environment:
+      DATABASE_URL: postgresql://postgres:Pillsgap0506@postgresdb:5432/postgres
+    volumes:
+      - ./:/app
+    expose:
+      - 8080
+    ports:
+      - "8080:8080"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  postgresdb:
+      image: postgres:15-alpine
+      volumes:
+        - postgres_data:/var/lib/postgresql/data/
+      expose:
+        - 5432
+      environment:
+        POSTGRES_USER: postgres
+        POSTGRES_PASSWORD: Pillsgap0506
+        POSTGRES_DB: postgres
+
+volumes:
+      postgres_data:
