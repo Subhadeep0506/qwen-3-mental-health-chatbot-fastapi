@@ -1,12 +1,6 @@
 from typing import List, Optional
 
-import torch
-from langchain_core.language_models.base import BaseLanguageModel
-
 from core.load_model import load_model_via_api
-
-torch.classes.__path__ = []
-
 
 SYSTEM_PROMPT = """You are a medical assistant tasked with answering user queries in conversational setting, responsibly and in as much detail as possible. Your responses should demonstrate critical reasoning, clear observations, and structured insights.
 You must respond in the following format:
@@ -85,6 +79,9 @@ def generate_response(
             )
             response = model.invoke(messages).content
         else:
+            import torch
+
+            torch.classes.__path__ = []
             input_text = tokenizer.apply_chat_template(
                 messages,
                 tokenize=False,
@@ -143,4 +140,5 @@ def generate_response(
             ],
         }
     )
+    return response, messages[-2:]  # Returns only the last user and assistant messages
     return response, messages[-2:]  # Returns only the last user and assistant messages

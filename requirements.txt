@@ -1,6 +1,4 @@
-bitsandbytes==0.46.0
 fastapi==0.116.1
-huggingface-hub==0.34.4
 nltk==3.9.1
 numpy==2.1.2
 openai==1.99.5
@@ -11,19 +9,23 @@ pydantic_core==2.33.2
 pymupdf==1.26.3
 python-dotenv==1.1.1
 python-multipart==0.0.20
-qwen-vl-utils==0.0.11
 regex==2024.11.6
 requests==2.32.3
-safetensors==0.5.3
 scipy==1.15.3
 setuptools==78.1.1
 SQLAlchemy==2.0.42
-torchvision==0.22.0
 tqdm==4.67.1
-transformers==4.55.0
-triton==3.3.0
 typing_extensions==4.13.2
-unsloth==2025.8.1
-unsloth_zoo==2025.8.1
 uvicorn==0.35.0
 wheel==0.45.1
+
+# GPU
+# bitsandbytes==0.46.0
+# huggingface-hub==0.34.4
+# qwen-vl-utils==0.0.11
+# safetensors==0.5.3
+# torchvision==0.22.0
+# transformers==4.55.0
+# triton==3.3.0
+# unsloth==2025.8.1
+# unsloth_zoo==2025.8.1
