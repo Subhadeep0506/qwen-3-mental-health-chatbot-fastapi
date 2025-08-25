@@ -1,12 +1,13 @@
-import os
+class SingletonMeta(type):
+    """A metaclass for creating singleton classes."""
 
-from core.load_model import load_model
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super().__call__(*args, **kwargs)
+        return cls._instances[cls]
 
 
-class State:
-    history = []
+class State(metaclass=SingletonMeta):
     model, tokenizer = None, None
-
-    def __init__(self):
-        self.history = []
-        # self.model, self.tokenizer = load_model(debug=os.getenv("DEBUG") == "1")

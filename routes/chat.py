@@ -1,3 +1,92 @@
-from fastapi import APIRouter
+import os
+from typing import List
+
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+
+from core.generate_response import generate_response
+from core.safety_score import generate_safety_score
+from database.database import get_db
+from utils.file_processor import convert_image_to_base64, convert_pdf_to_images
+from utils.message import add_ai_response, get_chat_history
+from models.cases import Case
+from models.patients import Patient
+from utils.state import State
 
 router = APIRouter()
+
+
+@router.post("/")
+async def predict(
+    session_id: str = Query(..., description="Session ID for the conversation"),
+    case_id: str = Query(..., description="Case ID for the conversation"),
+    patient_id: str = Query(..., description="Patient ID for the conversation"),
+    model: str = Query(
+        "qwen/qwen3-32b",
+        description="Model name or path. Accepted values: `qwen/qwen3-32b`, `deepseek-r1-distill-llama-70b`, `gemma2-9b-it`, `compound-beta`, `llama-3.1-8b-instant`, `llama-3.3-70b-versatile`,`meta-llama/llama-4-maverick-17b-128e-instruct`, `meta-llama/llama-4-scout-17b-16e-instruct`, `meta-llama/llama-guard-4-12b`, `openai/gpt-oss-120b`",
+    ),
+    model_provider: str = Query(
+        "groq", description="Model provider: 'local' or 'groq'"
+    ),
+    prompt: str = Query(..., description="Prompt for the model"),
+    temperature: float = Query(0.7, description="Sampling temperature"),
+    top_p: float = Query(1.0, description="Nucleus sampling probability"),
+    max_tokens: int = Query(1024, description="Maximum number of tokens to generate"),
+    debug: bool = Query(os.getenv("DEBUG") == "1", description="Enable debug mode"),
+    files: List[UploadFile] = File(None, description="Image files"),
+    db=Depends(get_db),  # Dependency injection for database session
+):
+    try:
+        case = db.query(Case).filter(Case.case_id == case_id).first()
+        if not case:
+            raise HTTPException(status_code=404, detail="Case not found")
+        patient = db.query(Patient).filter(Patient.patient_id == patient_id).first()
+        if not patient:
+            raise HTTPException(status_code=404, detail="Patient not found")
+        image_base64s = []
+        if files:
+            if not all(
+                file.content_type in ["image/jpeg", "image/png", "application/pdf"]
+                for file in files
+            ):
+                raise HTTPException(
+                    status_code=400,
+                    detail="Invalid file type. Allowed types are: JPEG, PNG, PDF.",
+                )
+            if files[0].content_type.startswith("image/"):
+                for image in files:
+                    img = await convert_image_to_base64(image)
+                    image_base64s.append(img)
+            elif files[0].content_type.startswith("application/pdf"):
+                for pdf in files:
+                    imgs = await convert_pdf_to_images(pdf)
+                    image_base64s.extend(imgs)
+
+        history = get_chat_history(session_id, db)
+        memory = [content for msg in history for content in msg["content"]]
+        response, messages = generate_response(
+            model=model,
+            model_provider=model_provider,
+            tokenizer=State.tokenizer,
+            images=image_base64s,
+            prompt=prompt,
+            temperature=temperature,
+            top_p=top_p,
+            max_tokens=max_tokens,
+            memory=memory,
+            debug=debug,
+        )
+        safety_score = generate_safety_score(response, debug=not debug)
+        history = add_ai_response(
+            case_id=case_id,
+            patient_id=patient_id,
+            session_id=session_id,
+            content=messages,
+            safety=safety_score,
+            history=history,
+            db=db,
+        )
+        return {"response": response, "safety_score": safety_score}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
