@@ -1,11 +1,10 @@
 import os
 
-import torch
-
-torch.classes.__path__ = []
-
 
 def load_model(debug=True):
+    import torch
+
+    torch.classes.__path__ = []
     model, tokenizer = None, None
     if not debug:
         from unsloth import FastLanguageModel
