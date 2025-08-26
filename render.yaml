@@ -7,9 +7,6 @@ services:
     envVars:
       - key: PORT
         value: 9090
-    disk:
-      name: prometheus-config
-      mountPath: /etc/prometheus
 
   - type: web
     name: grafana
@@ -23,9 +20,6 @@ services:
         value: admin
       - key: GF_SECURITY_ADMIN_PASSWORD
         value: admin
-    disk:
-      name: grafana-config
-      mountPath: /etc/grafana/provisioning
 
   - type: web
     name: loki-app
@@ -35,9 +29,6 @@ services:
     envVars:
       - key: PORT
         value: 3100
-    disk:
-      name: loki-config
-      mountPath: /etc/loki
 
   - type: worker
     name: promtail-app
@@ -45,9 +36,6 @@ services:
     image:
       url: grafana/promtail:latest
     # startCommand: ["-config.file=/etc/promtail/config.yaml"]
-    disk:
-      name: promtail-config
-      mountPath: /etc/promtail
 
   - type: web
     name: the-app
@@ -63,9 +51,6 @@ services:
     image:
       url: otel/opentelemetry-collector-contrib:latest
     # startCommand: ["--config=/etc/otel-collector-config.yaml"]
-    disk:
-      name: otel-config
-      mountPath: /etc
 
   - type: web
     name: tempo
@@ -76,6 +61,3 @@ services:
     envVars:
       - key: PORT
         value: 3200
-    disk:
-      name: tempo-config
-      mountPath: /etc
