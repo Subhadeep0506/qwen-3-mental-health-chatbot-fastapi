@@ -1,0 +1,87 @@
+services:
+  - type: web
+    name: prometheus-app
+    runtime: image
+    image:
+      url: prom/prometheus:latest
+    envVars:
+      - key: PORT
+        value: 9090
+    disk:
+      name: prometheus-config
+      mountPath: /etc/prometheus
+      sizeGB: 1
+
+  - type: web
+    name: grafana
+    runtime: image
+    image:
+      url: grafana/grafana:latest
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: GF_SECURITY_ADMIN_USER
+        value: admin
+      - key: GF_SECURITY_ADMIN_PASSWORD
+        value: admin
+    disk:
+      name: grafana-config
+      mountPath: /etc/grafana/provisioning
+      sizeGB: 1
+
+  - type: web
+    name: loki-app
+    runtime: image
+    image:
+      url: grafana/loki:latest
+    envVars:
+      - key: PORT
+        value: 3100
+    disk:
+      name: loki-config
+      mountPath: /etc/loki
+      sizeGB: 1
+
+  - type: worker
+    name: promtail-app
+    runtime: image
+    image:
+      url: grafana/promtail:latest
+    # startCommand: ["-config.file=/etc/promtail/config.yaml"]
+    disk:
+      name: promtail-config
+      mountPath: /etc/promtail
+      sizeGB: 1
+
+  - type: web
+    name: the-app
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: PORT
+        value: 8089
+
+  - type: worker
+    name: otel-collector
+    runtime: image
+    image:
+      url: otel/opentelemetry-collector-contrib:latest
+    # startCommand: ["--config=/etc/otel-collector-config.yaml"]
+    disk:
+      name: otel-config
+      mountPath: /etc
+      sizeGB: 1
+
+  - type: web
+    name: tempo
+    runtime: image
+    image:
+      url: grafana/tempo:latest
+    # startCommand: ["-config.file=/etc/tempo.yaml"]
+    envVars:
+      - key: PORT
+        value: 3200
+    disk:
+      name: tempo-config
+      mountPath: /etc
+      sizeGB: 1
