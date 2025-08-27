@@ -45,9 +45,8 @@ services:
     volumes:
       - ./promtail/config.yaml:/etc/promtail/config.yaml  # Mount the Promtail config file
       - /var/run/docker.sock:/var/run/docker.sock # Mount the Docker socket
-      # - ./logs:/app/logs # Only needed for file log scraping
     command: ["-config.file=/etc/promtail/config.yaml"]
-    depends_on: # Ensure loki is available before promtail starts
+    depends_on:
       - loki-app
     networks:
       - monitoring
@@ -74,7 +73,7 @@ services:
     networks:
       - monitoring
     depends_on:
-      - tempo # Export to Tempo
+      - tempo
 
   tempo:
     image: grafana/tempo:latest
@@ -83,7 +82,6 @@ services:
     command: ["-config.file=/etc/tempo.yaml"]
     volumes:
       - ./tempo/tempo.yaml:/etc/tempo.yaml
-      # - ./tempo-data:/tmp/tempo # Optional: Persist data
     ports:
       - "3200:3200"   # Tempo UI
       - "4317"        # OTLP gRPC. Port is mapped by otel-collector

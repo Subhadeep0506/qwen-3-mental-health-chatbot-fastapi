@@ -1,5 +1,0 @@
-FROM docker/compose:debian-1.29.2
-COPY . /app
-WORKDIR /app
-EXPOSE 8089 9090 3000 3100 3200 4317
-CMD ["docker", "compose", "-f", "docker-compose-grafana.yml", "up", "-d", "--build"]
