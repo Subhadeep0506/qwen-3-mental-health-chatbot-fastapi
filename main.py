@@ -10,7 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from database.database import Base, engine
-from routes import cases, chat, history, patient
+from routes import auth, cases, chat, history, patient, user
 from utils.state import State
 
 state = State()
@@ -55,6 +55,8 @@ app.include_router(chat.router, prefix="/chat")
 app.include_router(cases.router, prefix="/cases")
 app.include_router(history.router, prefix="/history")
 app.include_router(patient.router, prefix="/patient")
+app.include_router(user.router, prefix="/users")
+app.include_router(auth.router, prefix="/auth")
 
 
 @app.get("/")

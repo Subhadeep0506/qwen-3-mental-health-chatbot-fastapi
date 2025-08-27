@@ -1,16 +1,16 @@
-from sqlalchemy import JSON, Column, Integer, String
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, String
 
-from database.database import Base, engine
+from database.database import Base
 
 
 class User(Base):
     __tablename__ = "users"
 
     user_id = Column(String, nullable=False, primary_key=True, index=True)
-    name = Column(String, nullable=False)
+    name = Column(String, nullable=True)
     email = Column(String, nullable=False)
-    phone = Column(String, nullable=False)
+    password = Column(String, nullable=False)
+    phone = Column(String, nullable=True)
     role = Column(String, nullable=False)
-    time_created = Column(String, nullable=False)
-    time_updated = Column(String, nullable=False)
+    time_created = Column(String, nullable=True)
+    time_updated = Column(String, nullable=True)
