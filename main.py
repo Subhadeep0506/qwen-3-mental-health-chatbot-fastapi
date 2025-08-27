@@ -2,23 +2,25 @@ from dotenv import load_dotenv
 
 load_dotenv(".env")
 
-from loguru import logger
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
-from database.database import Base, engine
-from routes import cases, chat, history, patient
-from utils.state import State
-from prometheus_fastapi_instrumentator import Instrumentator
+from loguru import logger
 from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.requests import (
     RequestsInstrumentor,
 )  # If using requests library
 from opentelemetry.sdk.resources import Resource
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from prometheus_fastapi_instrumentator import Instrumentator
+
+from database.database import Base, engine
+from routes import cases, chat, history, patient
+from utils.state import State
 
 state = State()
 Base.metadata.create_all(bind=engine)
@@ -27,14 +29,13 @@ resource = Resource(
         "service.name": "the-app"  # Important for identifying your service in traces
     }
 )
+trace.set_tracer_provider(TracerProvider(resource=resource))
+tracer = trace.get_tracer(__name__)
+
 otlp_exporter_grpc = OTLPSpanExporter(
     endpoint="otel-collector:4317",  # Collector's gRPC endpoint
     insecure=True,  # Use insecure connection in this example
 )
-
-trace.set_tracer_provider(TracerProvider(resource=resource))
-tracer = trace.get_tracer(__name__)
-
 span_processor_grpc = BatchSpanProcessor(otlp_exporter_grpc)
 trace.get_tracer_provider().add_span_processor(span_processor_grpc)
 
@@ -44,9 +45,6 @@ async def lifespan(app: FastAPI):
     """
     Handles application startup and shutdown events.
     """
-    # --- Expose metrics on startup ---
-    # Ensure the instrumentator is available here or passed appropriately if needed,
-    # but since it's defined globally below, it should be accessible.
     instrumentator.expose(app)
     logger.info("Startup complete. Metrics exposed.")  # Optional print statement
     yield
@@ -75,6 +73,7 @@ instrumentator = Instrumentator().instrument(app)
 # Note: expose(app) is now called within the lifespan manager above
 
 FastAPIInstrumentor.instrument_app(app)
+RequestsInstrumentor().instrument()
 
 app.include_router(chat.router, prefix="/chat")
 app.include_router(cases.router, prefix="/cases")
