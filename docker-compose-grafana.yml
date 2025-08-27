@@ -6,7 +6,7 @@ services:
     ports:
       - 9090:9090
     volumes:
-      - ./prometheus/prometheus.yaml:/etc/prometheus/prometheus.yaml
+      - ./configs/prometheus/prometheus.yaml:/etc/prometheus/prometheus.yaml
     networks:
       - monitoring
 
@@ -20,7 +20,7 @@ services:
     ports:
       - 3000:3000
     volumes:
-      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./configs/grafana/provisioning:/etc/grafana/provisioning
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
@@ -34,7 +34,7 @@ services:
     ports:
       - 3100:3100
     volumes:
-      - ./loki/config.yaml:/etc/loki/config.yaml
+      - ./configs/loki/config.yaml:/etc/loki/config.yaml
     networks:
       - monitoring
 
@@ -43,14 +43,14 @@ services:
     container_name: promtail-observer
     restart: unless-stopped
     volumes:
-      - ./promtail/config.yaml:/etc/promtail/config.yaml  # Mount the Promtail config file
+      - ./configs/promtail/config.yaml:/etc/promtail/config.yaml # Mount the Promtail config file
       - /var/run/docker.sock:/var/run/docker.sock # Mount the Docker socket
     command: ["-config.file=/etc/promtail/config.yaml"]
     depends_on:
+      # Ensure loki is available before promtail starts
       - loki-app
     networks:
       - monitoring
-
 
   the-app:
     build: . # Instructs Docker Compose to build the image using the Dockerfile in the current directory
@@ -60,16 +60,16 @@ services:
       - "8089:8089" # Map host port 8089 to container port 8089 (where uvicorn runs)
     networks:
       - monitoring # Add the app to the monitoring network
-  
+
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
     container_name: otel-collector
     restart: unless-stopped
     command: ["--config=/etc/otel-collector-config.yaml"]
     volumes:
-      - ./otel-collection-config.yaml:/etc/otel-collector-config.yaml
+      - ./configs/otel-collection-config.yaml:/etc/otel-collector-config.yaml
     ports:
-      - "4317:4317"  # OTLP gRPC receiver
+      - "4317:4317" # OTLP gRPC receiver
     networks:
       - monitoring
     depends_on:
@@ -81,10 +81,11 @@ services:
     restart: unless-stopped
     command: ["-config.file=/etc/tempo.yaml"]
     volumes:
-      - ./tempo/tempo.yaml:/etc/tempo.yaml
+      - ./configs/tempo/tempo.yaml:/etc/tempo.yaml
+      # - ./tempo-data:/tmp/tempo # Optional: Persist data
     ports:
-      - "3200:3200"   # Tempo UI
-      - "4317"        # OTLP gRPC. Port is mapped by otel-collector
+      - "3200:3200" # Tempo UI
+      - "4317" # OTLP gRPC. Port is mapped by otel-collector
     networks:
       - monitoring
 
