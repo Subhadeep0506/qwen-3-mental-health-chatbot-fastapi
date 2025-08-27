@@ -1,1 +1,0 @@
-Docker Monitoring network: b112c594f72c95d315fa8fa2bf4c6f18fce9ab938703290f1e9f6d38692e20f6
