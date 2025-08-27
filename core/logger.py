@@ -1,5 +1,8 @@
-from loguru import logger
+import os
 import threading
+
+import logfire
+from loguru import logger
 
 
 class SingletonLogger:
@@ -16,6 +19,14 @@ class SingletonLogger:
 
     def _init_logger(self, log_file):
         logger.remove()  # Remove default console handler
+        logfire.configure(
+            token=os.getenv("LOGFIRE_TOKEN"),
+            send_to_logfire=True,
+            service_name="qwen-2.5-vl-api",
+            service_version="0.0.1",
+            environment=os.getenv("ENVIRONMENT", "development"),
+        )
+        logger.configure(handlers=[logfire.loguru_handler()])
         logger.add(
             log_file,
             colorize=True,

@@ -1,3 +1,6 @@
+from core.logger import SingletonLogger
+
+
 class SingletonMeta(type):
     """A metaclass for creating singleton classes."""
 
@@ -11,3 +14,4 @@ class SingletonMeta(type):
 
 class State(metaclass=SingletonMeta):
     model, tokenizer = None, None
+    logger = SingletonLogger().get_logger()

@@ -2,21 +2,12 @@ from dotenv import load_dotenv
 
 load_dotenv(".env")
 
+import os
 from contextlib import asynccontextmanager
 
+import logfire
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from loguru import logger
-from opentelemetry import trace
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from opentelemetry.instrumentation.requests import (
-    RequestsInstrumentor,
-)  # If using requests library
-from opentelemetry.sdk.resources import Resource
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from prometheus_fastapi_instrumentator import Instrumentator
 
 from database.database import Base, engine
 from routes import cases, chat, history, patient
@@ -24,32 +15,13 @@ from utils.state import State
 
 state = State()
 Base.metadata.create_all(bind=engine)
-resource = Resource(
-    attributes={
-        "service.name": "the-app"  # Important for identifying your service in traces
-    }
-)
-trace.set_tracer_provider(TracerProvider(resource=resource))
-tracer = trace.get_tracer(__name__)
-
-otlp_exporter_grpc = OTLPSpanExporter(
-    endpoint="otel-collector:4317",  # Collector's gRPC endpoint
-    insecure=True,  # Use insecure connection in this example
-)
-span_processor_grpc = BatchSpanProcessor(otlp_exporter_grpc)
-trace.get_tracer_provider().add_span_processor(span_processor_grpc)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Handles application startup and shutdown events.
-    """
-    instrumentator.expose(app)
-    logger.info("Startup complete. Metrics exposed.")  # Optional print statement
+    state.logger.info("Starting up...")
     yield
-    # --- Code here would run on shutdown ---
-    logger.info("Shutdown complete.")
+    state.logger.info("Shutting down...")
 
 
 app = FastAPI(
@@ -59,7 +31,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
@@ -68,12 +39,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-instrumentator = Instrumentator().instrument(app)
-
-# Note: expose(app) is now called within the lifespan manager above
-
-FastAPIInstrumentor.instrument_app(app)
-RequestsInstrumentor().instrument()
+logfire.configure(
+    token=os.getenv("LOGFIRE_TOKEN"),
+    service_name="qwen-2.5-vl-api",
+    service_version="0.0.1",
+    environment=os.getenv("ENVIRONMENT", "development"),
+)
+logfire.instrument_fastapi(app, capture_headers=True)
+logfire.instrument_sqlalchemy(engine)
+logfire.instrument_httpx()
+logfire.instrument_requests()
+logfire.instrument_system_metrics(base="full")
 
 app.include_router(chat.router, prefix="/chat")
 app.include_router(cases.router, prefix="/cases")
