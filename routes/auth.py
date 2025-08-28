@@ -100,7 +100,7 @@ async def refresh_token(
         if not payload:
             raise HTTPException(status_code=401, detail="Invalid refresh token")
         user_id = payload["sub"]
-        user = db.query(User).filter(User.user_id == user_id).first()
+        user = await db.query(User).filter(User.user_id == user_id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         new_access_token = create_access_token(subject=user.__dict__)

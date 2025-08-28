@@ -78,7 +78,7 @@ def token_required(func):
     """Verifies the JWT token. Checks if user is loggedin."""
 
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    async def wrapper(*args, **kwargs):
         payload = decodeJWT(kwargs["dependencies"])
         user_id = payload["sub"]
         data = (
@@ -91,7 +91,7 @@ def token_required(func):
             .first()
         )
         if data:
-            return func(*args, **kwargs)
+            return await func(*args, **kwargs)
 
         else:
             raise HTTPException(
