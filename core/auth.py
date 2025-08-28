@@ -52,7 +52,9 @@ def create_access_token(subject: Union[str, Any], expires_delta: int = None) -> 
         expires_delta = datetime.utcnow() + timedelta(
             minutes=int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES"))
         )
-    to_encode = {"exp": expires_delta, "sub": str(subject)}
+    if "_sa_instance_state" in subject:
+        del subject["_sa_instance_state"]
+    to_encode = {"exp": expires_delta, "sub": subject}
     encoded_jwt = jwt.encode(
         to_encode, os.getenv("JWT_SECRET_KEY"), os.getenv("JWT_ALGORITHM")
     )

@@ -64,10 +64,12 @@ async def login_user(
             raise HTTPException(status_code=401, detail="Invalid credentials")
         if not verify_password(password, user.password):
             raise HTTPException(status_code=401, detail="Invalid credentials")
+        del user.password
         access_token = create_access_token(subject=user.__dict__)
         refresh_token = create_refresh_token(subject=user.user_id)
         new_token = Token(
             token_id=str(uuid4()),
+            user_id=user.user_id,
             access_token=access_token,
             refresh_token=refresh_token,
             status=True,
@@ -102,8 +104,22 @@ async def refresh_token(
         user = db.query(User).filter(User.user_id == user_id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
-        new_access_token = create_access_token(subject=user.user_id)
+        del user.password
+        new_access_token = create_access_token(subject=user.__dict__)
         new_refresh_token = create_refresh_token(subject=user.user_id)
+        token = (
+            db.query(Token)
+            .filter_by(user_id=user_id, access_token=dependencies, status=True)
+            .order_by(desc(Token.time_created))
+            .first()
+        )
+        if token:
+            token.access_token = new_access_token
+            token.refresh_token = new_refresh_token
+            token.time_updated = datetime.datetime.now(datetime.UTC).isoformat()
+            db.add(token)
+            db.commit()
+            db.refresh(token)
         return {
             "access_token": new_access_token,
             "refresh_token": new_refresh_token,
