@@ -64,6 +64,7 @@ async def login_user(
             raise HTTPException(status_code=401, detail="Invalid credentials")
         if not verify_password(password, user.password):
             raise HTTPException(status_code=401, detail="Invalid credentials")
+        del user.password
         access_token = create_access_token(subject=user.__dict__)
         refresh_token = create_refresh_token(subject=user.user_id)
         new_token = Token(
