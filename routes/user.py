@@ -1,9 +1,11 @@
 import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import desc
 
 from core.auth import JWTBearer, decodeJWT, token_required
 from database.database import get_db
+from models.token import Token
 from models.user import User
 
 router = APIRouter()
@@ -19,7 +21,10 @@ async def get_users(
             del user.password
         return {"users": [user.__dict__ for user in users]}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occured while fetching all users: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occured while fetching all users: {str(e)}",
+        )
 
 
 @router.get("/me")
@@ -38,7 +43,10 @@ async def get_self(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occured while fetching user details: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occured while fetching user details: {str(e)}",
+        )
 
 
 @router.get("/{user_id}")
@@ -57,7 +65,10 @@ async def get_user(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500,  detail=f"An error occured while fetching user details: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occured while fetching user details: {str(e)}",
+        )
 
 
 @router.put("/")
@@ -90,7 +101,10 @@ async def update_user(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occured while updating user details: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occured while updating user details: {str(e)}",
+        )
 
 
 @router.delete("/")
@@ -123,4 +137,6 @@ async def delete_user(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"An error occured while deleting user: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"An error occured while deleting user: {str(e)}"
+        )
