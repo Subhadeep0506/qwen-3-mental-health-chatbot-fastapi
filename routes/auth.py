@@ -1,8 +1,8 @@
 import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import desc
-
+from sqlalchemy import desc, or_
+from uuid import uuid4
 from core.auth import (
     JWTBearer,
     create_access_token,
@@ -29,7 +29,7 @@ async def register_user(
     db=Depends(get_db),
 ):
     try:
-        user = db.query(User).filter_by(user_id=user_id, email=email).first()
+        user = db.query(User).filter(or_(User.user_id==user_id, User.email==email)).first()
         if user:
             raise HTTPException(status_code=400, detail="User ID already exists")
         new_user = User(
@@ -46,27 +46,28 @@ async def register_user(
         db.commit()
         db.refresh(new_user)
         return {"message": "User created successfully"}
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"An error occured while registering user: {str(e)}")
 
 
 @router.post("/login")
-@token_required
 async def login_user(
-    user_id: str = Query(str, description=""),
+    email: str = Query(str, description=""),
     password: str = Query(str, description=""),
     db=Depends(get_db),
 ):
     try:
-        user = db.query(User).filter(User.user_id == user_id).first()
+        user = db.query(User).filter(User.email == email).first()
         if not user:
             raise HTTPException(status_code=401, detail="Invalid credentials")
         if not verify_password(password, user.password):
             raise HTTPException(status_code=401, detail="Invalid credentials")
-        access_token = create_access_token(subject=user.user_id)
+        access_token = create_access_token(subject=user.__dict__)
         refresh_token = create_refresh_token(subject=user.user_id)
         new_token = Token(
-            user_id=user.user_id,
+            token_id=str(uuid4()),
             access_token=access_token,
             refresh_token=refresh_token,
             status=True,
@@ -83,20 +84,21 @@ async def login_user(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500,  detail=f"An error occured while login: {str(e)}")
 
 
 @router.post("/refresh")
 @token_required
 async def refresh_token(
     refresh_token: str = Query(str, description=""),
+    dependencies=Depends(JWTBearer()),
     db=Depends(get_db),
 ):
     try:
         payload = decodeJWT(refresh_token)
         if not payload:
             raise HTTPException(status_code=401, detail="Invalid refresh token")
-        user_id = payload["sub"]
+        user_id = payload["sub"]["user_id"]
         user = db.query(User).filter(User.user_id == user_id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
@@ -109,7 +111,7 @@ async def refresh_token(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"An error occured while refreshing token: {str(e)}")
 
 
 @router.post("/logout")
@@ -119,7 +121,7 @@ async def logout_user(
     db=Depends(get_db),
 ):
     try:
-        user_id = decodeJWT(dependencies)["sub"]
+        user_id = decodeJWT(dependencies)["sub"]["user_id"]
         user = db.query(User).filter(User.user_id == user_id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
@@ -139,4 +141,4 @@ async def logout_user(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"An error occured while logout: {str(e)}")

@@ -4,13 +4,16 @@ from database.database import get_db
 from models.chat_message import ChatHistory
 from utils.message import get_chat_history
 from utils.state import State
+from core.auth import token_required, JWTBearer
 
 router = APIRouter()
 
 
 @router.get("/{session_id}")
+@token_required
 async def get_history(
     session_id: str,
+    dependencies=Depends(JWTBearer()),
     db=Depends(get_db),
 ):
     try:
@@ -21,8 +24,10 @@ async def get_history(
 
 
 @router.delete("/{session_id}")
+@token_required
 async def delete_history(
     session_id: str,
+    dependencies=Depends(JWTBearer()),
     db=Depends(get_db),
 ):
     try:

@@ -11,11 +11,13 @@ from utils.message import add_ai_response, get_chat_history
 from models.cases import Case
 from models.patients import Patient
 from utils.state import State
+from core.auth import token_required, JWTBearer
 
 router = APIRouter()
 
 
 @router.post("/")
+@token_required
 async def predict(
     session_id: str = Query(..., description="Session ID for the conversation"),
     case_id: str = Query(..., description="Case ID for the conversation"),
@@ -33,6 +35,7 @@ async def predict(
     max_tokens: int = Query(1024, description="Maximum number of tokens to generate"),
     debug: bool = Query(os.getenv("DEBUG") == "1", description="Enable debug mode"),
     files: List[UploadFile] = File(None, description="Image files"),
+    dependencies=Depends(JWTBearer()),
     db=Depends(get_db),  # Dependency injection for database session
 ):
     try:

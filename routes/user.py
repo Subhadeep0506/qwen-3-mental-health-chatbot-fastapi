@@ -19,7 +19,7 @@ async def get_users(
             del user.password
         return {"users": [user.__dict__ for user in users]}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"An error occured while fetching all users: {str(e)}")
 
 
 @router.get("/me")
@@ -29,7 +29,7 @@ async def get_self(
     db=Depends(get_db),
 ):
     try:
-        user_id = decodeJWT(dependencies)["sub"]
+        user_id = decodeJWT(dependencies)["sub"]["user_id"]
         user = db.query(User).filter(User.user_id == user_id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
@@ -38,7 +38,7 @@ async def get_self(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"An error occured while fetching user details: {str(e)}")
 
 
 @router.get("/{user_id}")
@@ -57,7 +57,7 @@ async def get_user(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500,  detail=f"An error occured while fetching user details: {str(e)}")
 
 
 @router.put("/")
@@ -71,7 +71,7 @@ async def update_user(
     db=Depends(get_db),
 ):
     try:
-        user_id = decodeJWT(dependencies)["sub"]
+        user_id = decodeJWT(dependencies)["sub"]["user_id"]
         user = db.query(User).filter(User.user_id == user_id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
@@ -90,7 +90,7 @@ async def update_user(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"An error occured while updating user details: {str(e)}")
 
 
 @router.delete("/")
@@ -100,15 +100,27 @@ async def delete_user(
     db=Depends(get_db),
 ):
     try:
-        user_id = decodeJWT(dependencies)["sub"]
+        user_id = decodeJWT(dependencies)["sub"]["user_id"]
         user = db.query(User).filter(User.user_id == user_id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         db.delete(user)
         db.commit()
         db.refresh(user)
+        token = (
+            db.query(Token)
+            .filter_by(user_id=user_id, access_token=dependencies, status=True)
+            .order_by(desc(Token.time_created))
+            .first()
+        )
+        if token:
+            token.status = False
+            token.time_updated = datetime.datetime.now(datetime.UTC).isoformat()
+            db.add(token)
+            db.commit()
+            db.refresh(token)
         return {"message": "User deleted successfully"}
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"An error occured while deleting user: {str(e)}")

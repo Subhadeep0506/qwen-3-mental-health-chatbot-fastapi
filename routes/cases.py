@@ -2,7 +2,7 @@ import datetime
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-
+from core.auth import JWTBearer, decodeJWT, token_required
 from database.database import get_db
 from models.cases import Case
 from models.patients import Patient
@@ -11,7 +11,9 @@ router = APIRouter()
 
 
 @router.get("/")
+@token_required
 async def get_cases(
+    dependencies=Depends(JWTBearer()),
     db=Depends(get_db),
 ):
     try:
@@ -22,8 +24,10 @@ async def get_cases(
 
 
 @router.get("/{case_id}")
+@token_required
 async def get_case(
     case_id: str,
+    dependencies=Depends(JWTBearer()),
     db=Depends(get_db),
 ):
     try:
@@ -38,12 +42,14 @@ async def get_case(
 
 
 @router.post("/")
+@token_required
 async def create_case(
     case_id: str = Query(..., description="Case ID for the case"),
     patient_id: str = Query(..., description="Patient ID for the case"),
     case_name: str = Query(..., description="Name of the case"),
     description: str = Query(..., description="Description of the case"),
     tags: List[str] = Query([], description="Tags for the case"),
+    dependencies=Depends(JWTBearer()),
     db=Depends(get_db),
 ):
     try:
@@ -73,11 +79,13 @@ async def create_case(
 
 
 @router.put("/{case_id}")
+@token_required
 async def update_case(
     case_id: str,
     case_name: str = Query(None, description="Updated name of the case"),
     description: str = Query(None, description="Updated description of the case"),
     tags: List[str] = Query(None, description="Updated tags for the case"),
+    dependencies=Depends(JWTBearer()),
     db=Depends(get_db),
 ):
     try:
@@ -101,8 +109,10 @@ async def update_case(
 
 
 @router.delete("/{case_id}")
+@token_required
 async def delete_case(
     case_id: str,
+    dependencies=Depends(JWTBearer()),
     db=Depends(get_db),
 ):
     try:

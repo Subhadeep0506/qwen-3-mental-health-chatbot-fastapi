@@ -4,12 +4,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from database.database import get_db
 from models.patients import Patient
-
+from core.auth import token_required, JWTBearer
 router = APIRouter()
 
 
 @router.get("/")
+@token_required
 async def get_patients(
+    dependencies=Depends(JWTBearer()),
     db=Depends(get_db),
 ):
     try:
@@ -20,8 +22,10 @@ async def get_patients(
 
 
 @router.get("/{patient_id}")
+@token_required
 async def get_patient(
     patient_id: str,
+    dependencies=Depends(JWTBearer()),
     db=Depends(get_db),
 ):
     try:
@@ -36,6 +40,7 @@ async def get_patient(
 
 
 @router.post("/")
+@token_required
 async def create_patient(
     patient_id: str = Query(str, description=""),
     name: str = Query(str, description=""),
@@ -43,6 +48,7 @@ async def create_patient(
     gender: str = Query(str, description=""),
     dob: str = Query(str, description=""),
     medical_history: str = Query(str, description=""),
+    dependencies=Depends(JWTBearer()),
     db=Depends(get_db),
 ):
     try:
@@ -67,6 +73,7 @@ async def create_patient(
 
 
 @router.put("/{patient_id}")
+@token_required
 async def update_patient(
     patient_id: str,
     name: str = Query(None, description="Updated name of the patient"),
@@ -74,6 +81,7 @@ async def update_patient(
     gender: str = Query(None, description=""),
     dob: str = Query(None, description=""),
     medical_history: str = Query(None, description=""),
+    dependencies=Depends(JWTBearer()),
     db=Depends(get_db),
 ):
     try:
@@ -101,8 +109,10 @@ async def update_patient(
 
 
 @router.delete("/{patient_id}")
+@token_required
 async def delete_patient(
     patient_id: str,
+    dependencies=Depends(JWTBearer()),
     db=Depends(get_db),
 ):
     try:
