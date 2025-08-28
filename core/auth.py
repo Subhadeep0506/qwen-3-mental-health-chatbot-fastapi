@@ -52,9 +52,8 @@ def create_access_token(subject: Union[str, Any], expires_delta: int = None) -> 
         expires_delta = datetime.utcnow() + timedelta(
             minutes=int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES"))
         )
-    if "_sa_instance_state" in subject:
-        del subject["_sa_instance_state"]
-    to_encode = {"exp": expires_delta, "sub": subject}
+
+    to_encode = {"exp": expires_delta, "sub": subject["user_id"], "email": subject["email"]}
     encoded_jwt = jwt.encode(
         to_encode, os.getenv("JWT_SECRET_KEY"), os.getenv("JWT_ALGORITHM")
     )
@@ -68,7 +67,7 @@ def create_refresh_token(subject: Union[str, Any], expires_delta: int = None) ->
         expires_delta = datetime.utcnow() + timedelta(
             minutes=int(os.getenv("JWT_REFRESH_TOKEN_EXPIRE_MINUTES"))
         )
-    to_encode = {"exp": expires_delta, "sub": subject}
+    to_encode = {"exp": expires_delta, "sub": str(subject)}
     encoded_jwt = jwt.encode(
         to_encode, os.getenv("JWT_SECRET_KEY"), os.getenv("JWT_ALGORITHM")
     )
@@ -81,7 +80,7 @@ def token_required(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         payload = decodeJWT(kwargs["dependencies"])
-        user_id = payload["sub"]["user_id"]
+        user_id = payload["sub"]
         data = (
             kwargs["db"]
             .query(Token)

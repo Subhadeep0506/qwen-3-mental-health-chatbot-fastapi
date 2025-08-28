@@ -64,7 +64,6 @@ async def login_user(
             raise HTTPException(status_code=401, detail="Invalid credentials")
         if not verify_password(password, user.password):
             raise HTTPException(status_code=401, detail="Invalid credentials")
-        del user.password
         access_token = create_access_token(subject=user.__dict__)
         refresh_token = create_refresh_token(subject=user.user_id)
         new_token = Token(
@@ -100,11 +99,10 @@ async def refresh_token(
         payload = decodeJWT(refresh_token)
         if not payload:
             raise HTTPException(status_code=401, detail="Invalid refresh token")
-        user_id = payload["sub"]["user_id"]
+        user_id = payload["sub"]
         user = db.query(User).filter(User.user_id == user_id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
-        del user.password
         new_access_token = create_access_token(subject=user.__dict__)
         new_refresh_token = create_refresh_token(subject=user.user_id)
         token = (
@@ -137,7 +135,7 @@ async def logout_user(
     db=Depends(get_db),
 ):
     try:
-        user_id = decodeJWT(dependencies)["sub"]["user_id"]
+        user_id = decodeJWT(dependencies)["sub"]
         user = db.query(User).filter(User.user_id == user_id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")

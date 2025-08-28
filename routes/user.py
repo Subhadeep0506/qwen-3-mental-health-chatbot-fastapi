@@ -34,7 +34,7 @@ async def get_self(
     db=Depends(get_db),
 ):
     try:
-        user_id = decodeJWT(dependencies)["sub"]["user_id"]
+        user_id = decodeJWT(dependencies)["sub"]
         user = db.query(User).filter(User.user_id == user_id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
@@ -82,7 +82,7 @@ async def update_user(
     db=Depends(get_db),
 ):
     try:
-        user_id = decodeJWT(dependencies)["sub"]["user_id"]
+        user_id = decodeJWT(dependencies)["sub"]
         user = db.query(User).filter(User.user_id == user_id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
@@ -114,7 +114,7 @@ async def delete_user(
     db=Depends(get_db),
 ):
     try:
-        user_id = decodeJWT(dependencies)["sub"]["user_id"]
+        user_id = decodeJWT(dependencies)["sub"]
         user = db.query(User).filter(User.user_id == user_id).first()
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
