@@ -15,7 +15,6 @@ class Case(Base):
         ForeignKey(Patient.patient_id),
         nullable=False,
     )
-    created_by = Column(String, ForeignKey(User.user_id) ,nullable=False)
     case_name = Column(String, nullable=False)
     description = Column(String, nullable=False)
     time_created = Column(String, nullable=True)

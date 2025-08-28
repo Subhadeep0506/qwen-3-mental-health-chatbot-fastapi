@@ -2,9 +2,10 @@ import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from core.auth import JWTBearer, token_required
 from database.database import get_db
 from models.patients import Patient
-from core.auth import token_required, JWTBearer
+
 router = APIRouter()
 
 
@@ -15,6 +16,7 @@ async def get_patients(
     db=Depends(get_db),
 ):
     try:
+        print("ITS HERRRE")
         patients = db.query(Patient).all()
         return {"patients": [patient.__dict__ for patient in patients]}
     except Exception as e:
