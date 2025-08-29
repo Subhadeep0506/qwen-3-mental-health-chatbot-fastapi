@@ -5,7 +5,7 @@ from jose import jwt
 from jwt import InvalidTokenError
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
-
+from utils.state import State
 from models.token import Token
 
 password_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -22,6 +22,7 @@ def verify_password(password: str, hashed_pass: str) -> bool:
 def verify_token(token: str, db: Session):
     token_record = db.query(Token).filter(Token.access_token == token).first()
     if not token_record or not token_record.status:
+        State.logger.error("Invalid or expired token")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
         )

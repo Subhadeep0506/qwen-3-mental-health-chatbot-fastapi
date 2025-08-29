@@ -20,7 +20,8 @@ async def get_history(
         conversations = get_chat_history(session_id, db=db)
         return {"conversations": conversations}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        State.logger.error(f"An error occured while fetching history: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An error occured while fetching history: {str(e)}")
 
 
 @router.delete("/{session_id}")
@@ -35,4 +36,5 @@ async def delete_history(
         db.commit()
         return {"detail": "History deleted successfully"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        State.logger.error(f"An error occured while deleting history: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An error occured while deleting history: {str(e)}")

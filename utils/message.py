@@ -2,7 +2,7 @@ import uuid
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-
+from utils.state import State
 from models.chat_message import ChatHistory
 
 
@@ -45,7 +45,8 @@ def add_ai_response(
         )
         return history
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        State.logger.error(f"An error occured while adding AI response: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An error occured while adding AI response: {str(e)}")
 
 
 def get_chat_history(session_id: str, db: Session):
@@ -75,4 +76,5 @@ def get_chat_history(session_id: str, db: Session):
         session_history = [msg for msg in history if msg["session_id"] == session_id]
         return session_history
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        State.logger.error(f"An error occured while getting chat history: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An error occured while getting chat history: {str(e)}")

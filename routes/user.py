@@ -21,6 +21,7 @@ async def get_users(
             del user.password
         return {"users": [user.__dict__ for user in users]}
     except Exception as e:
+        State.logger.error(f"An error occured while fetching all users: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"An error occured while fetching all users: {str(e)}",
@@ -37,12 +38,14 @@ async def get_self(
         user_id = decodeJWT(dependencies)["sub"]
         user = db.query(User).filter(User.user_id == user_id).first()
         if not user:
+            State.logger.error(f"User with ID {user_id} not found")
             raise HTTPException(status_code=404, detail="User not found")
         del user.password
         return {"user": user.__dict__}
     except HTTPException:
         raise
     except Exception as e:
+        State.logger.error(f"An error occured while fetching user details: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"An error occured while fetching user details: {str(e)}",
@@ -59,12 +62,14 @@ async def get_user(
     try:
         user = db.query(User).filter(User.user_id == user_id).first()
         if not user:
+            State.logger.error(f"User with ID {user_id} not found")
             raise HTTPException(status_code=404, detail="User not found")
         del user.password
         return {"user": user.__dict__}
     except HTTPException:
         raise
     except Exception as e:
+        State.logger.error(f"An error occured while fetching user details: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"An error occured while fetching user details: {str(e)}",
@@ -85,9 +90,11 @@ async def update_user(
         user_id = decodeJWT(dependencies)["sub"]
         user = db.query(User).filter(User.user_id == user_id).first()
         if not user:
+            State.logger.error(f"User with ID {user_id} not found")
             raise HTTPException(status_code=404, detail="User not found")
         user_with_email = db.query(User).filter(User.email == email).first()
         if user_with_email and user_with_email.user_id != user_id:
+            State.logger.error("Email already in use")
             raise HTTPException(status_code=400, detail="Email already in use")
         user.name = name
         user.email = email
@@ -117,6 +124,7 @@ async def delete_user(
         user_id = decodeJWT(dependencies)["sub"]
         user = db.query(User).filter(User.user_id == user_id).first()
         if not user:
+            State.logger.error(f"User with ID {user_id} not found")
             raise HTTPException(status_code=404, detail="User not found")
         db.delete(user)
         db.commit()
@@ -137,6 +145,7 @@ async def delete_user(
     except HTTPException:
         raise
     except Exception as e:
+        State.logger.error(f"An error occured while deleting user: {str(e)}")
         raise HTTPException(
             status_code=500, detail=f"An error occured while deleting user: {str(e)}"
         )

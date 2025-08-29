@@ -97,6 +97,7 @@ async def update_case(
     try:
         case = db.query(Case).filter(Case.case_id == case_id).first()
         if not case:
+            State.logger.error(f"Case with ID {case_id} not found")
             raise HTTPException(status_code=404, detail="Case not found")
         if case_name:
             case.case_name = case_name
@@ -111,7 +112,8 @@ async def update_case(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        State.logger.error(f"An error occured while updating case: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An error occured while updating case: {str(e)}")
 
 
 @router.delete("/{case_id}")
@@ -124,6 +126,7 @@ async def delete_case(
     try:
         case = db.query(Case).filter(Case.case_id == case_id).first()
         if not case:
+            State.logger.error(f"Case with ID {case_id} not found")
             raise HTTPException(status_code=404, detail="Case not found")
         db.delete(case)
         db.commit()
@@ -131,4 +134,5 @@ async def delete_case(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        State.logger.error(f"An error occured while deleting case: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An error occured while deleting case: {str(e)}")

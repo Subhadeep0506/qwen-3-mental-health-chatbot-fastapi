@@ -8,7 +8,7 @@ from fastapi import HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import jwt
 from sqlalchemy import desc
-
+from utils.state import State
 from models.token import Token
 from utils.token import decodeJWT
 
@@ -23,15 +23,18 @@ class JWTBearer(HTTPBearer):
         ).__call__(request)
         if credentials:
             if not credentials.scheme == "Bearer":
+                State.logger.error("Invalid authentication scheme.")
                 raise HTTPException(
                     status_code=403, detail="Invalid authentication scheme."
                 )
             if not self.verify_jwt(credentials.credentials):
+                State.logger.error("Invalid token or expired token.")
                 raise HTTPException(
                     status_code=403, detail="Invalid token or expired token."
                 )
             return credentials.credentials
         else:
+            State.logger.error("Invalid authorization code.")
             raise HTTPException(status_code=403, detail="Invalid authorization code.")
 
     def verify_jwt(self, jwtoken: str) -> bool:
@@ -93,6 +96,7 @@ def token_required(func):
             return await func(*args, **kwargs)
 
         else:
+            State.logger.error("Invalid access token.")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token."
             )

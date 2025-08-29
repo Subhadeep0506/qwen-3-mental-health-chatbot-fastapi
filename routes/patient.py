@@ -19,7 +19,8 @@ async def get_patients(
         patients = db.query(Patient).all()
         return {"patients": [patient.__dict__ for patient in patients]}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        State.logger.error(f"An error occured while fetching all patients: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An error occured while fetching all patients: {str(e)}")
 
 
 @router.get("/{patient_id}")
@@ -32,12 +33,14 @@ async def get_patient(
     try:
         patient = db.query(Patient).filter(Patient.patient_id == patient_id).first()
         if not patient:
+            State.logger.error(f"Patient with ID {patient_id} not found")
             raise HTTPException(status_code=404, detail="Patient not found")
         return {"patient": patient.__dict__}
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        State.logger.error(f"An error occured while fetching patient: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An error occured while fetching patient: {str(e)}")
 
 
 @router.post("/")
@@ -70,7 +73,8 @@ async def create_patient(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        State.logger.error(f"An error occured while creating new patient: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An error occured while creating new patient: {str(e)}")
 
 
 @router.put("/{patient_id}")
@@ -88,6 +92,7 @@ async def update_patient(
     try:
         patient = db.query(Patient).filter(Patient.patient_id == patient_id).first()
         if not patient:
+            State.logger.error(f"Patient with ID {patient_id} not found")
             raise HTTPException(status_code=404, detail="Patient not found")
         if name:
             patient.name = name
@@ -106,7 +111,8 @@ async def update_patient(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        State.logger.error(f"An error occured while updating patient: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An error occured while updating patient: {str(e)}")
 
 
 @router.delete("/{patient_id}")
@@ -119,6 +125,7 @@ async def delete_patient(
     try:
         patient = db.query(Patient).filter(Patient.patient_id == patient_id).first()
         if not patient:
+            State.logger.error(f"Patient with ID {patient_id} not found")
             raise HTTPException(status_code=404, detail="Patient not found")
         db.delete(patient)
         db.commit()
@@ -126,4 +133,5 @@ async def delete_patient(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        State.logger.error(f"An error occured while deleting patient: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An error occured while deleting patient: {str(e)}")

@@ -41,9 +41,11 @@ async def predict(
     try:
         case = db.query(Case).filter(Case.case_id == case_id).first()
         if not case:
+            State.logger.error(f"Case with ID {case_id} not found")
             raise HTTPException(status_code=404, detail="Case not found")
         patient = db.query(Patient).filter(Patient.patient_id == patient_id).first()
         if not patient:
+            State.logger.error(f"Patient with ID {patient_id} not found")
             raise HTTPException(status_code=404, detail="Patient not found")
         image_base64s = []
         if files:
@@ -51,6 +53,7 @@ async def predict(
                 file.content_type in ["image/jpeg", "image/png", "application/pdf"]
                 for file in files
             ):
+                State.logger.error("Invalid file type")
                 raise HTTPException(
                     status_code=400,
                     detail="Invalid file type. Allowed types are: JPEG, PNG, PDF.",
@@ -92,4 +95,5 @@ async def predict(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        State.logger.error(f"An error occured while generating response: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An error occured while generating response: {str(e)}")
