@@ -35,7 +35,6 @@ def load_model_via_api(
             api_key=os.getenv("GROQ_API_KEY"),
             temperature=temperature,
             max_tokens=max_tokens,
-            reasoning_format="raw",
         )
 
     return model, None
