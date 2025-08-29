@@ -12,7 +12,7 @@ from models.cases import Case
 from models.patients import Patient
 from utils.state import State
 from core.auth import token_required, JWTBearer
-
+from utils.state import State
 router = APIRouter()
 
 

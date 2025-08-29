@@ -5,7 +5,7 @@ from models.chat_message import ChatHistory
 from utils.message import get_chat_history
 from utils.state import State
 from core.auth import token_required, JWTBearer
-
+from utils.state import State
 router = APIRouter()
 
 

@@ -14,7 +14,7 @@ from database.database import get_db
 from models.token import Token
 from models.user import User
 from utils.token import get_hashed_password, verify_password
-
+from utils.state import State
 router = APIRouter()
 
 
@@ -31,6 +31,7 @@ async def register_user(
     try:
         user = db.query(User).filter(or_(User.user_id==user_id, User.email==email)).first()
         if user:
+            State.logger.error(message="User ID already exists")
             raise HTTPException(status_code=400, detail="User ID already exists")
         new_user = User(
             user_id=user_id,
@@ -49,6 +50,7 @@ async def register_user(
     except HTTPException:
         raise
     except Exception as e:
+        State.logger.error(f"An error occured while registering user: {str(e)}")
         raise HTTPException(status_code=500, detail=f"An error occured while registering user: {str(e)}")
 
 
@@ -60,12 +62,25 @@ async def login_user(
 ):
     try:
         user = db.query(User).filter(User.email == email).first()
-        if not user:
-            raise HTTPException(status_code=401, detail="Invalid credentials")
-        if not verify_password(password, user.password):
+        if not user or not verify_password(password, user.password):
+            State.logger.error("Invalid credentials")
             raise HTTPException(status_code=401, detail="Invalid credentials")
         access_token = create_access_token(subject=user.__dict__)
         refresh_token = create_refresh_token(subject=user.user_id)
+        # Logout of previous session
+        token = (
+            db.query(Token)
+            .filter_by(user_id=user.user_id, status=True)
+            .order_by(desc(Token.time_created))
+            .first()
+        )
+        if token:
+            token.status = False
+            token.time_updated = datetime.datetime.now(datetime.UTC).isoformat()
+            db.add(token)
+            db.commit()
+            db.refresh(token)
+
         new_token = Token(
             token_id=str(uuid4()),
             user_id=user.user_id,
@@ -85,6 +100,7 @@ async def login_user(
     except HTTPException:
         raise
     except Exception as e:
+        State.logger.error(f"An error occured while login: {str(e)}")
         raise HTTPException(status_code=500,  detail=f"An error occured while login: {str(e)}")
 
 
@@ -98,10 +114,12 @@ async def refresh_token(
     try:
         payload = decodeJWT(refresh_token)
         if not payload:
+            State.logger.error("Invalid refresh token")
             raise HTTPException(status_code=401, detail="Invalid refresh token")
         user_id = payload["sub"]
         user = await db.query(User).filter(User.user_id == user_id).first()
         if not user:
+            State.logger.error("User not found")
             raise HTTPException(status_code=404, detail="User not found")
         new_access_token = create_access_token(subject=user.__dict__)
         new_refresh_token = create_refresh_token(subject=user.user_id)
@@ -125,6 +143,7 @@ async def refresh_token(
     except HTTPException:
         raise
     except Exception as e:
+        State.logger.error(f"An error occured while refreshing token: {str(e)}")
         raise HTTPException(status_code=500, detail=f"An error occured while refreshing token: {str(e)}")
 
 
@@ -138,6 +157,7 @@ async def logout_user(
         user_id = decodeJWT(dependencies)["sub"]
         user = db.query(User).filter(User.user_id == user_id).first()
         if not user:
+            State.logger.error("User not found")
             raise HTTPException(status_code=404, detail="User not found")
         token = (
             db.query(Token)
@@ -155,4 +175,5 @@ async def logout_user(
     except HTTPException:
         raise
     except Exception as e:
+        State.logger.error(f"An error occured while logout: {str(e)}")
         raise HTTPException(status_code=500, detail=f"An error occured while logout: {str(e)}")

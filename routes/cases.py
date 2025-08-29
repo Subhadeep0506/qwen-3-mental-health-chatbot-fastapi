@@ -6,7 +6,7 @@ from core.auth import JWTBearer, decodeJWT, token_required
 from database.database import get_db
 from models.cases import Case
 from models.patients import Patient
-
+from utils.state import State
 router = APIRouter()
 
 
@@ -20,7 +20,8 @@ async def get_cases(
         cases = db.query(Case).all()
         return {"cases": [case.__dict__ for case in cases]}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        State.logger.error(f"An error occured while fetching all cases: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An error occured while fetching all cases: {str(e)}")
 
 
 @router.get("/{case_id}")
@@ -33,12 +34,14 @@ async def get_case(
     try:
         case = db.query(Case).filter(Case.case_id == case_id).first()
         if not case:
+            State.logger.error(f"Case with ID {case_id} not found")
             raise HTTPException(status_code=404, detail="Case not found")
         return {"case": case.__dict__}
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        State.logger.error(f"An error occured while fetching case: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An error occured while fetching case: {str(e)}")
 
 
 @router.post("/")
@@ -55,9 +58,11 @@ async def create_case(
     try:
         patient = db.query(Patient).filter(Patient.patient_id == patient_id).first()
         if not patient:
+            State.logger.error(f"Patient with ID {patient_id} not found")
             raise HTTPException(status_code=404, detail="Patient not found")
         existing_case = db.query(Case).filter(Case.case_id == case_id).first()
         if existing_case:
+            State.logger.error(f"Case with ID {case_id} already exists")
             raise HTTPException(status_code=400, detail="Case ID already exists")
         new_case = Case(
             case_id=case_id,
@@ -75,7 +80,8 @@ async def create_case(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        State.logger.error(f"An error occured while creating new case: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An error occured while creating new case: {str(e)}")
 
 
 @router.put("/{case_id}")

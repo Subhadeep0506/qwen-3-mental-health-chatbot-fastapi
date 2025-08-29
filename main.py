@@ -6,7 +6,7 @@ import os
 from contextlib import asynccontextmanager
 
 import logfire
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 
 from database.database import Base, engine

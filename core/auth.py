@@ -1,7 +1,7 @@
 import os
 from datetime import datetime, timedelta
 from functools import wraps
-from typing import Any, Union
+from typing import Any, Dict, Union
 
 import jwt
 from fastapi import HTTPException, Request, status
@@ -45,15 +45,14 @@ class JWTBearer(HTTPBearer):
         return isTokenValid
 
 
-def create_access_token(subject: Union[str, Any], expires_delta: int = None) -> str:
+def create_access_token(subject: Dict[str, Any], expires_delta: int = None) -> str:
     if expires_delta is not None:
         expires_delta = datetime.utcnow() + expires_delta
     else:
         expires_delta = datetime.utcnow() + timedelta(
             minutes=int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES"))
         )
-
-    to_encode = {"exp": expires_delta, "sub": subject["user_id"], "email": subject["email"]}
+    to_encode = {"exp": expires_delta, "sub": subject["user_id"], "email": subject["email"], "role": subject["role"]}
     encoded_jwt = jwt.encode(
         to_encode, os.getenv("JWT_SECRET_KEY"), os.getenv("JWT_ALGORITHM")
     )

@@ -1,6 +1,6 @@
 import os
 import threading
-
+import sys
 import logfire
 from loguru import logger
 
@@ -28,12 +28,9 @@ class SingletonLogger:
         )
         logger.configure(handlers=[logfire.loguru_handler()])
         logger.add(
-            log_file,
-            colorize=True,
+            sys.stderr,
             format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
-            rotation="10 MB",
-            retention="10 days",
-            enqueue=True,
+            backtrace=True,
         )
         self.logger = logger
 

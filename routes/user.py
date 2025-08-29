@@ -7,7 +7,7 @@ from core.auth import JWTBearer, decodeJWT, token_required
 from database.database import get_db
 from models.token import Token
 from models.user import User
-
+from utils.state import State
 router = APIRouter()
 
 
