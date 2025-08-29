@@ -16,7 +16,6 @@ async def get_patients(
     db=Depends(get_db),
 ):
     try:
-        print("ITS HERRRE")
         patients = db.query(Patient).all()
         return {"patients": [patient.__dict__ for patient in patients]}
     except Exception as e:
