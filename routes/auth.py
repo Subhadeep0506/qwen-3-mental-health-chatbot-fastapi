@@ -31,8 +31,8 @@ async def register_user(
     try:
         user = db.query(User).filter(or_(User.user_id==user_id, User.email==email)).first()
         if user:
-            State.logger.error(message="User ID already exists")
-            raise HTTPException(status_code=400, detail="User ID already exists")
+            State.logger.error("User with email already exists")
+            raise HTTPException(status_code=400, detail="User with email already exists")
         new_user = User(
             user_id=user_id,
             name=name,
