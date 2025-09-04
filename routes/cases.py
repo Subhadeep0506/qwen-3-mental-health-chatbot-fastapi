@@ -52,6 +52,7 @@ async def create_case(
     case_name: str = Query(..., description="Name of the case"),
     description: str = Query(..., description="Description of the case"),
     tags: List[str] = Query([], description="Tags for the case"),
+    priority: str = Query(None, description="Priority of the case"),
     dependencies=Depends(JWTBearer()),
     db=Depends(get_db),
 ):
@@ -72,6 +73,7 @@ async def create_case(
             time_created=datetime.datetime.now(datetime.UTC).isoformat(),
             time_updated=datetime.datetime.now(datetime.UTC).isoformat(),
             tags=tags,
+            priority=priority,
         )
         db.add(new_case)
         db.commit()
@@ -91,6 +93,7 @@ async def update_case(
     case_name: str = Query(None, description="Updated name of the case"),
     description: str = Query(None, description="Updated description of the case"),
     tags: List[str] = Query(None, description="Updated tags for the case"),
+    priority: str = Query(None, description="Updated priority of the case"),
     dependencies=Depends(JWTBearer()),
     db=Depends(get_db),
 ):
@@ -105,6 +108,8 @@ async def update_case(
             case.description = description
         if tags is not None:
             case.tags = tags
+        if priority:
+            case.priority = priority
         case.time_updated = datetime.datetime.now(datetime.UTC).isoformat()
         db.commit()
         db.refresh(case)

@@ -20,5 +20,6 @@ class Case(Base):
     time_created = Column(String, nullable=True)
     time_updated = Column(String, nullable=True)
     tags = Column(JSON, nullable=True)
+    priority = Column(String, nullable=True)
 
     chat_histories = relationship("ChatHistory", backref="cases", cascade="all, delete")

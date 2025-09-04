@@ -51,6 +51,8 @@ async def create_patient(
     age: int = Query(str, description=""),
     gender: str = Query(str, description=""),
     dob: str = Query(str, description=""),
+    height: str = Query(None, description="Height in cm"),
+    weight: str = Query(None, description="Weight in kg"),
     medical_history: str = Query(str, description=""),
     dependencies=Depends(JWTBearer()),
     db=Depends(get_db),
@@ -62,6 +64,8 @@ async def create_patient(
             age=age,
             gender=gender,
             dob=dob,
+            height=height,
+            weight=weight,
             medical_history=medical_history,
             time_created=datetime.datetime.now(datetime.UTC).isoformat(),
             time_updated=datetime.datetime.now(datetime.UTC).isoformat(),
@@ -85,6 +89,8 @@ async def update_patient(
     age: int = Query(None, description="Updated age of the patient"),
     gender: str = Query(None, description=""),
     dob: str = Query(None, description=""),
+    height: str = Query(None, description="Height in cm"),
+    weight: str = Query(None, description="Weight in kg"),
     medical_history: str = Query(None, description=""),
     dependencies=Depends(JWTBearer()),
     db=Depends(get_db),
@@ -102,6 +108,10 @@ async def update_patient(
             patient.gender = gender
         if dob:
             patient.dob = dob
+        if height:
+            patient.height = height
+        if weight:
+            patient.weight = weight
         if medical_history:
             patient.medical_history = medical_history
         patient.time_updated = datetime.datetime.now(datetime.UTC).isoformat()
