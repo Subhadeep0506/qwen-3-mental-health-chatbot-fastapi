@@ -6,12 +6,13 @@ from utils.message import get_chat_history
 from utils.state import State
 from core.auth import token_required, JWTBearer
 from utils.state import State
+
 router = APIRouter()
 
 
-@router.get("/{session_id}")
+@router.get("/messages/{session_id}")
 @token_required
-async def get_history(
+async def get_session_messages(
     session_id: str,
     dependencies=Depends(JWTBearer()),
     db=Depends(get_db),
@@ -21,12 +22,31 @@ async def get_history(
         return {"conversations": conversations}
     except Exception as e:
         State.logger.error(f"An error occured while fetching history: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"An error occured while fetching history: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"An error occured while fetching history: {str(e)}"
+        )
 
 
-@router.delete("/{session_id}")
+@router.get("/sessions")
 @token_required
-async def delete_history(
+async def get_sessions(
+    session_id: str,
+    dependencies=Depends(JWTBearer()),
+    db=Depends(get_db),
+):
+    try:
+        conversations = get_chat_history(session_id, db=db)
+        return {"conversations": conversations}
+    except Exception as e:
+        State.logger.error(f"An error occured while fetching history: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"An error occured while fetching history: {str(e)}"
+        )
+
+
+@router.delete("/session/{session_id}")
+@token_required
+async def delete_session(
     session_id: str,
     dependencies=Depends(JWTBearer()),
     db=Depends(get_db),
@@ -37,4 +57,6 @@ async def delete_history(
         return {"detail": "History deleted successfully"}
     except Exception as e:
         State.logger.error(f"An error occured while deleting history: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"An error occured while deleting history: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"An error occured while deleting history: {str(e)}"
+        )

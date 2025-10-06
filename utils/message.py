@@ -3,7 +3,9 @@ import uuid
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from utils.state import State
+from datetime import datetime, timedelta
 from models.chat_message import ChatHistory
+from models.session import ChatSession
 
 
 def add_ai_response(
@@ -25,6 +27,16 @@ def add_ai_response(
     """
     try:
         if db:
+            session = db.query(ChatSession).filter(ChatSession.session_id == session_id).first()
+            if not session:
+                new_session = ChatSession(
+                    session_id = session_id
+                    title = ""
+                    case_id = case_id
+                    patient_id = patient_id
+                    time_created = datetime.utcnow()
+                    time_updated = datetime.utcnow()
+                )
             new_message = ChatHistory(
                 message_id=str(uuid.uuid4()),
                 session_id=session_id,
