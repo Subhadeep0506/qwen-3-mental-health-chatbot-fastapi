@@ -47,6 +47,8 @@ tqdm==4.67.1
 typing_extensions==4.13.2
 uvicorn==0.35.0
 wheel==0.45.1
+pytest==8.3.3
+httpx==0.27.2
 
 # GPU
 # bitsandbytes==0.46.0

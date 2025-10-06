@@ -1,4 +1,5 @@
 from sqlalchemy import Column, String
+from sqlalchemy.orm import relationship
 
 from database.database import Base
 
@@ -14,3 +15,6 @@ class User(Base):
     role = Column(String, nullable=False)
     time_created = Column(String, nullable=True)
     time_updated = Column(String, nullable=True)
+
+    # Relationship to tokens (one-to-many)
+    tokens = relationship("Token", back_populates="user", cascade="all, delete-orphan")

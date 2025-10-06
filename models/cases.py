@@ -22,4 +22,6 @@ class Case(Base):
     tags = Column(JSON, nullable=True)
     priority = Column(String, nullable=True)
 
-    chat_histories = relationship("ChatHistory", backref="cases", cascade="all, delete")
+    chat_histories = relationship(
+        "SessionMessages", backref="cases", cascade="all, delete"
+    )

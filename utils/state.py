@@ -1,4 +1,4 @@
-from core.logger import SingletonLogger
+from controllers.logger import SingletonLogger
 
 
 class SingletonMeta(type):

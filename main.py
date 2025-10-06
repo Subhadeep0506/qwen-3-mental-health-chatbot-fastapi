@@ -51,12 +51,12 @@ logfire.instrument_httpx()
 logfire.instrument_requests()
 logfire.instrument_system_metrics(base="full")
 
-app.include_router(chat.router, prefix="/chat")
-app.include_router(cases.router, prefix="/cases")
-app.include_router(history.router, prefix="/history")
-app.include_router(patient.router, prefix="/patient")
-app.include_router(user.router, prefix="/users")
-app.include_router(auth.router, prefix="/auth")
+app.include_router(chat.router, prefix="/api/v1/chat")
+app.include_router(cases.router, prefix="/api/v1/cases")
+app.include_router(history.router, prefix="/api/v1/history")
+app.include_router(patient.router, prefix="/api/v1/patient")
+app.include_router(user.router, prefix="/api/v1/users")
+app.include_router(auth.router, prefix="/api/v1/auth")
 
 
 @app.get("/")

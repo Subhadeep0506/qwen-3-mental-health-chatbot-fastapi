@@ -20,5 +20,5 @@ class Patient(Base):
 
     cases = relationship("Case", backref="patients", cascade="all, delete")
     chat_histories = relationship(
-        "ChatHistory", backref="patients", cascade="all, delete"
+        "SessionMessages", backref="patients", cascade="all, delete"
     )

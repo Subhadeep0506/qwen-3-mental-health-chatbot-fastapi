@@ -2,11 +2,12 @@ import datetime
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from core.auth import JWTBearer, decodeJWT, token_required
+from controllers.auth import JWTBearer, decodeJWT, token_required
 from database.database import get_db
 from models.cases import Case
 from models.patients import Patient
 from utils.state import State
+
 router = APIRouter()
 
 
@@ -21,7 +22,10 @@ async def get_cases(
         return {"cases": [case.__dict__ for case in cases]}
     except Exception as e:
         State.logger.error(f"An error occured while fetching all cases: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"An error occured while fetching all cases: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occured while fetching all cases: {str(e)}",
+        )
 
 
 @router.get("/{case_id}")
@@ -41,7 +45,9 @@ async def get_case(
         raise
     except Exception as e:
         State.logger.error(f"An error occured while fetching case: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"An error occured while fetching case: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"An error occured while fetching case: {str(e)}"
+        )
 
 
 @router.post("/")
@@ -83,7 +89,10 @@ async def create_case(
         raise
     except Exception as e:
         State.logger.error(f"An error occured while creating new case: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"An error occured while creating new case: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occured while creating new case: {str(e)}",
+        )
 
 
 @router.put("/{case_id}")
@@ -118,7 +127,9 @@ async def update_case(
         raise
     except Exception as e:
         State.logger.error(f"An error occured while updating case: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"An error occured while updating case: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"An error occured while updating case: {str(e)}"
+        )
 
 
 @router.delete("/{case_id}")
@@ -140,4 +151,6 @@ async def delete_case(
         raise
     except Exception as e:
         State.logger.error(f"An error occured while deleting case: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"An error occured while deleting case: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"An error occured while deleting case: {str(e)}"
+        )

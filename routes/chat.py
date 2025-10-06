@@ -3,16 +3,17 @@ from typing import List
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 
-from core.generate_response import generate_response
-from core.safety_score import generate_safety_score
+from controllers.generate_response import generate_response
+from controllers.safety_score import generate_safety_score
 from database.database import get_db
 from utils.file_processor import convert_image_to_base64, convert_pdf_to_images
-from utils.message import add_ai_response, get_chat_history
+from controllers.message import add_ai_response, get_chat_history
 from models.cases import Case
 from models.patients import Patient
 from utils.state import State
-from core.auth import token_required, JWTBearer
+from controllers.auth import token_required, JWTBearer
 from utils.state import State
+
 router = APIRouter()
 
 
@@ -96,4 +97,7 @@ async def predict(
         raise
     except Exception as e:
         State.logger.error(f"An error occured while generating response: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"An error occured while generating response: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occured while generating response: {str(e)}",
+        )

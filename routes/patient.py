@@ -2,10 +2,11 @@ import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from core.auth import JWTBearer, token_required
+from controllers.auth import JWTBearer, token_required
 from database.database import get_db
 from models.patients import Patient
 from utils.state import State
+
 router = APIRouter()
 
 
@@ -20,7 +21,10 @@ async def get_patients(
         return {"patients": [patient.__dict__ for patient in patients]}
     except Exception as e:
         State.logger.error(f"An error occured while fetching all patients: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"An error occured while fetching all patients: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occured while fetching all patients: {str(e)}",
+        )
 
 
 @router.get("/{patient_id}")
@@ -40,7 +44,9 @@ async def get_patient(
         raise
     except Exception as e:
         State.logger.error(f"An error occured while fetching patient: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"An error occured while fetching patient: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"An error occured while fetching patient: {str(e)}"
+        )
 
 
 @router.post("/")
@@ -78,7 +84,10 @@ async def create_patient(
         raise
     except Exception as e:
         State.logger.error(f"An error occured while creating new patient: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"An error occured while creating new patient: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occured while creating new patient: {str(e)}",
+        )
 
 
 @router.put("/{patient_id}")
@@ -122,7 +131,9 @@ async def update_patient(
         raise
     except Exception as e:
         State.logger.error(f"An error occured while updating patient: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"An error occured while updating patient: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"An error occured while updating patient: {str(e)}"
+        )
 
 
 @router.delete("/{patient_id}")
@@ -144,4 +155,6 @@ async def delete_patient(
         raise
     except Exception as e:
         State.logger.error(f"An error occured while deleting patient: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"An error occured while deleting patient: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"An error occured while deleting patient: {str(e)}"
+        )

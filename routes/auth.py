@@ -3,7 +3,7 @@ import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import desc, or_
 from uuid import uuid4
-from core.auth import (
+from controllers.auth import (
     JWTBearer,
     create_access_token,
     create_refresh_token,
@@ -15,6 +15,7 @@ from models.token import Token
 from models.user import User
 from utils.token import get_hashed_password, verify_password
 from utils.state import State
+
 router = APIRouter()
 
 
@@ -29,10 +30,16 @@ async def register_user(
     db=Depends(get_db),
 ):
     try:
-        user = db.query(User).filter(or_(User.user_id==user_id, User.email==email)).first()
+        user = (
+            db.query(User)
+            .filter(or_(User.user_id == user_id, User.email == email))
+            .first()
+        )
         if user:
             State.logger.error("User with email already exists")
-            raise HTTPException(status_code=400, detail="User with email already exists")
+            raise HTTPException(
+                status_code=400, detail="User with email already exists"
+            )
         new_user = User(
             user_id=user_id,
             name=name,
@@ -51,7 +58,9 @@ async def register_user(
         raise
     except Exception as e:
         State.logger.error(f"An error occured while registering user: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"An error occured while registering user: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"An error occured while registering user: {str(e)}"
+        )
 
 
 @router.post("/login")
@@ -101,7 +110,9 @@ async def login_user(
         raise
     except Exception as e:
         State.logger.error(f"An error occured while login: {str(e)}")
-        raise HTTPException(status_code=500,  detail=f"An error occured while login: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"An error occured while login: {str(e)}"
+        )
 
 
 @router.post("/refresh")
@@ -117,7 +128,7 @@ async def refresh_token(
             State.logger.error("Invalid refresh token")
             raise HTTPException(status_code=401, detail="Invalid refresh token")
         user_id = payload["sub"]
-        user = await db.query(User).filter(User.user_id == user_id).first()
+        user = db.query(User).filter(User.user_id == user_id).first()
         if not user:
             State.logger.error("User not found")
             raise HTTPException(status_code=404, detail="User not found")
@@ -144,7 +155,9 @@ async def refresh_token(
         raise
     except Exception as e:
         State.logger.error(f"An error occured while refreshing token: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"An error occured while refreshing token: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"An error occured while refreshing token: {str(e)}"
+        )
 
 
 @router.post("/logout")
@@ -176,4 +189,6 @@ async def logout_user(
         raise
     except Exception as e:
         State.logger.error(f"An error occured while logout: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"An error occured while logout: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"An error occured while logout: {str(e)}"
+        )

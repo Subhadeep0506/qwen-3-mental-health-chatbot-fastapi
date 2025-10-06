@@ -3,11 +3,12 @@ import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import desc
 
-from core.auth import JWTBearer, decodeJWT, token_required
+from controllers.auth import JWTBearer, decodeJWT, token_required
 from database.database import get_db
 from models.token import Token
 from models.user import User
 from utils.state import State
+
 router = APIRouter()
 
 
@@ -96,10 +97,10 @@ async def update_user(
         if user_with_email and user_with_email.user_id != user_id:
             State.logger.error("Email already in use")
             raise HTTPException(status_code=400, detail="Email already in use")
-        user.name = name
-        user.email = email
-        user.phone = phone
-        user.role = role
+        user.name = name if name else user.name
+        user.email = email if email else user.email
+        user.phone = phone if phone else user.phone
+        user.role = role if role else user.role
         user.time_updated = datetime.datetime.now(datetime.UTC).isoformat()
         db.add(user)
         db.commit()
@@ -122,13 +123,7 @@ async def delete_user(
 ):
     try:
         user_id = decodeJWT(dependencies)["sub"]
-        user = db.query(User).filter(User.user_id == user_id).first()
-        if not user:
-            State.logger.error(f"User with ID {user_id} not found")
-            raise HTTPException(status_code=404, detail="User not found")
-        db.delete(user)
-        db.commit()
-        db.refresh(user)
+        # Invalidate the current access token if exists
         token = (
             db.query(Token)
             .filter_by(user_id=user_id, access_token=dependencies, status=True)
@@ -140,7 +135,18 @@ async def delete_user(
             token.time_updated = datetime.datetime.now(datetime.UTC).isoformat()
             db.add(token)
             db.commit()
-            db.refresh(token)
+
+        user = db.query(User).filter(User.user_id == user_id).first()
+        if not user:
+            State.logger.error(f"User with ID {user_id} not found")
+            raise HTTPException(status_code=404, detail="User not found")
+
+        # Manually delete tokens (safer for sqlite without ON DELETE enforcement)
+        db.query(Token).filter(Token.user_id == user_id).delete(
+            synchronize_session=False
+        )
+        db.delete(user)
+        db.commit()
         return {"message": "User deleted successfully"}
     except HTTPException:
         raise
