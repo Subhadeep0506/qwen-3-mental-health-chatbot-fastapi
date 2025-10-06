@@ -5,14 +5,14 @@ from models.cases import Case
 from models.patients import Patient
 
 
-class ChatHistory(Base):
-    __tablename__ = "chat_history"
+class ChatSession(Base):
+    __tablename__ = "chat_session"
 
-    message_id = Column(String, primary_key=True, nullable=False, index=True)
-    session_id = Column(String, nullable=False)
+    session_id = Column(String, primary_key=True, nullable=False, index=True)
+    title = Column(String)
     case_id = Column(String, ForeignKey(Case.case_id), nullable=False,)
     patient_id = Column(
         String, ForeignKey(Patient.patient_id), nullable=False,
     )
-    content = Column(JSON, nullable=False)
-    safety = Column(JSON, nullable=False)
+    time_created = Column(String)
+    time_updated = Column(String)
