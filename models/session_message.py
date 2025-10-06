@@ -22,6 +22,8 @@ class SessionMessages(Base):
         ForeignKey(Patient.patient_id),
         nullable=False,
     )
+    feedback = Column(String)
+    like = Column(Boolean)
     content = Column(JSON, nullable=False)
     safety = Column(JSON, nullable=False)
     feedback = Column(String)
