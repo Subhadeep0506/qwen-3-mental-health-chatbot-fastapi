@@ -82,7 +82,7 @@ async def predict(
             memory=memory,
             debug=debug,
         )
-        safety_score = generate_safety_score(response, debug=not debug)
+        safety_score = generate_safety_score(response, debug=debug)
         history = add_ai_response(
             case_id=case_id,
             patient_id=patient_id,

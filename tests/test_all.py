@@ -53,7 +53,7 @@ def engine(test_db_url):
     )
     Base.metadata.create_all(bind=engine_)
     yield engine_
-    Base.metadata.drop_all(bind=engine_)
+    # Base.metadata.drop_all(bind=engine_)
 
 
 @pytest.fixture(scope="function")
