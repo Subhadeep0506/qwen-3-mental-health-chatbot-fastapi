@@ -23,7 +23,11 @@ if str(PROJECT_ROOT) not in sys.path:
 def test_db_url():
     fd, path = tempfile.mkstemp(prefix="test_db_", suffix=".sqlite")
     os.close(fd)
-    url = os.getenv("DATABASE_URL_DEV") if os.getenv("DATABASE_URL_DEV") else f"sqlite:///{path}"
+    url = (
+        os.getenv("DATABASE_URL_DEV")
+        if os.getenv("DATABASE_URL_DEV")
+        else f"sqlite:///{path}"
+    )
     # Environment needed before importing application modules
     os.environ.setdefault("DATABASE_URL", url)
     os.environ.setdefault("JWT_SECRET_KEY", "testsecret")
@@ -39,12 +43,17 @@ def test_db_url():
 def engine(test_db_url):
     from database.database import Base  # local after env set
 
-    engine_ = create_engine(test_db_url, connect_args={"check_same_thread": False}
-        if "sqlite" in os.getenv("DATABASE_URL", "")
-        else {})
+    engine_ = create_engine(
+        test_db_url,
+        connect_args=(
+            {"check_same_thread": False}
+            if "sqlite" in os.getenv("DATABASE_URL", "")
+            else {}
+        ),
+    )
     Base.metadata.create_all(bind=engine_)
     yield engine_
-    # Base.metadata.drop_all(bind=engine_)
+    Base.metadata.drop_all(bind=engine_)
 
 
 @pytest.fixture(scope="function")
@@ -82,43 +91,64 @@ def client(app):
         yield c
 
 
-from models.patients import Patient
-from models.cases import Case
+#########################
+# Helper functions – API only (no direct DB touching)
+#########################
 
 
-def create_user(
-    db,
-    *,
-    user_id: str,
-    email: str,
-    password: str,
-    role: str,
-    name: str | None = None,
-    phone: str | None = None,
+def ensure_user(
+    client, *, email: str, password: str = "password123", role: str = "user"
 ):
-    """Create a user directly in the DB for test setup.
+    params = {
+        "user_id": email.split("@")[0],
+        "name": "Test User",
+        "email": email,
+        "password": password,
+        "role": role,
+    }
+    r = client.post("/api/v1/auth/register", params=params)
+    # 200 success, 400 duplicate
+    assert r.status_code in (200, 400), r.text
+    return r
 
-    Password and role are mandatory to avoid implicit defaults and mirror application expectations.
-    """
-    from models.user import User  # local import to respect test env ordering
-    from utils.token import (
-        get_hashed_password,
-    )  # deferred import keeps path handling local
 
-    user = User(
-        user_id=user_id,
-        name=name or "Test User",
-        email=email,
-        password=get_hashed_password(password),
-        phone=phone,
-        role=role,
-        time_created=datetime.datetime.now(datetime.UTC).isoformat(),
-        time_updated=datetime.datetime.now(datetime.UTC).isoformat(),
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return user
+def ensure_patient(client, headers, *, patient_id: str):
+    payload = {
+        "patient_id": patient_id,
+        "name": "John Doe",
+        "age": 30,
+        "gender": "M",
+        "dob": "1995-01-01",
+        "height": "180",
+        "weight": "80",
+        "medical_history": "None",
+    }
+    r = client.post("/api/v1/patient/", params=payload, headers=headers)
+    assert r.status_code == 200, r.text
+    return r
+
+
+def ensure_case(client, headers, *, case_id: str, patient_id: str):
+    payload = {
+        "case_id": case_id,
+        "patient_id": patient_id,
+        "case_name": "Case Name",
+        "description": "Desc",
+        "tags": ["t1", "t2"],
+        "priority": "high",
+    }
+    r = client.post("/api/v1/cases/", params=payload, headers=headers)
+    # 200 success, 400 duplicate
+    assert r.status_code in (200, 400), r.text
+    return r
+
+
+def setup_session_dependencies(client, headers):
+    pid = _uniq("ps_api")
+    cid = _uniq("cs_api")
+    ensure_patient(client, headers, patient_id=pid)
+    ensure_case(client, headers, case_id=cid, patient_id=pid)
+    return pid, cid
 
 
 def login(client, email="user@example.com", password="password123"):
@@ -139,22 +169,24 @@ class TokenManager:
     def __init__(self):
         self._cache: dict[str, dict[str, str]] = {}
 
-    def get(self, client, db_session, email: str, password: str = "password123"):
+    def get(self, client, _db_session, email: str, password: str = "password123"):
         if email in self._cache:
             return self._cache[email]
-        # ensure user exists
-        from models.user import User  # local import to avoid early model import
-
-        if not db_session.query(User).filter_by(email=email).first():
-            create_user(
-                db_session,
-                user_id=email.split("@")[0].replace(".", "_"),
-                email=email,
-                password=password,
-                role="user",
+        # Try login; if fails register then login
+        lr = client.post(
+            "/api/v1/auth/login", params={"email": email, "password": password}
+        )
+        if lr.status_code != 200:
+            ensure_user(client, email=email, password=password)
+            lr = client.post(
+                "/api/v1/auth/login", params={"email": email, "password": password}
             )
-        access, refresh = login(client, email=email, password=password)
-        self._cache[email] = {"access": access, "refresh": refresh}
+        assert lr.status_code == 200, lr.text
+        data = lr.json()
+        self._cache[email] = {
+            "access": data["access_token"],
+            "refresh": data["refresh_token"],
+        }
         return self._cache[email]
 
     def invalidate(self, email: str):
@@ -182,7 +214,7 @@ def _now_iso() -> str:
 
 def auth_headers(
     client,
-    db_session,
+    _db_session,  # kept for fixture compatibility; no direct DB use
     token_manager,
     *,
     email: str | None = None,
@@ -190,19 +222,8 @@ def auth_headers(
 ):
     if email is None:
         email = f"{uuid.uuid4().hex[:8]}@example.com"
-    # derive user_id from email
-    user_id = email.split("@")[0]
-    from models.user import User  # local import
-
-    if not db_session.query(User).filter_by(email=email).first():
-        create_user(
-            db_session,
-            user_id=user_id,
-            email=email,
-            password=password,
-            role="user",
-        )
-    tokens = token_manager.get(client, db_session, email=email, password=password)
+    ensure_user(client, email=email, password=password)
+    tokens = token_manager.get(client, _db_session, email=email, password=password)
     return {"Authorization": f"Bearer {tokens['access']}"}, email, tokens
 
 
@@ -286,39 +307,20 @@ def test_auth_logout(client, db_session, token_manager):
 # Users
 #########################
 def test_get_users_list(client, db_session):
-    # Create two specific users we will assert about
-    create_user(
-        db_session,
-        user_id="uu1",
-        email="u1@example.com",
-        password="password123",
-        role="user",
-    )
-    create_user(
-        db_session,
-        user_id="uu2",
-        email="u2@example.com",
-        password="password123",
-        role="user",
-    )
+    ensure_user(client, email="u1@example.com")
+    ensure_user(client, email="u2@example.com")
     resp = client.get("/api/v1/users/")
     assert resp.status_code == 200
     data = resp.json()["users"]
     # Focus only on the two we just created (database may already contain others from earlier tests)
-    filtered = [u for u in data if u["user_id"] in {"uu1", "uu2"}]
+    filtered = [u for u in data if u["user_id"] in {"u1", "u2"}]
     assert len(filtered) == 2
     assert all("password" not in u for u in filtered)
 
 
 def test_users_get_self(client, db_session, token_manager):
     email = f"self_{uuid.uuid4().hex[:6]}@example.com"
-    create_user(
-        db_session,
-        user_id=email.split("@")[0],
-        email=email,
-        password="password123",
-        role="user",
-    )
+    ensure_user(client, email=email)
     headers, _, _ = auth_headers(client, db_session, token_manager, email=email)
     r = client.get("/api/v1/users/me", headers=headers)
     assert r.status_code == 200
@@ -327,13 +329,7 @@ def test_users_get_self(client, db_session, token_manager):
 
 def test_users_update_self(client, db_session, token_manager):
     email = f"update_{uuid.uuid4().hex[:6]}@example.com"
-    create_user(
-        db_session,
-        user_id=email.split("@")[0],
-        email=email,
-        password="password123",
-        role="user",
-    )
+    ensure_user(client, email=email)
     headers, _, _ = auth_headers(client, db_session, token_manager, email=email)
     up = client.put("/api/v1/users/", params={"name": "New Name"}, headers=headers)
     assert up.status_code == 200, up.text
@@ -342,13 +338,7 @@ def test_users_update_self(client, db_session, token_manager):
 
 def test_users_delete_self(client, db_session, token_manager):
     email = f"delete_{uuid.uuid4().hex[:6]}@example.com"
-    create_user(
-        db_session,
-        user_id=email.split("@")[0],
-        email=email,
-        password="password123",
-        role="user",
-    )
+    ensure_user(client, email=email)
     headers, _, _ = auth_headers(client, db_session, token_manager, email=email)
     dl = client.delete("/api/v1/users/", headers=headers)
     assert dl.status_code == 200, dl.text
@@ -443,28 +433,14 @@ def _create_case(client, headers, patient_id: str, case_id: str):
     return client.post("/api/v1/cases/", params=params, headers=headers)
 
 
-def _ensure_patient(db_session, patient_id: str):
-    now = _now_iso()
-    patient = Patient(
-        patient_id=patient_id,
-        name="Case Pat",
-        age=40,
-        gender="F",
-        dob="1985-05-05",
-        height="170",
-        weight="70",
-        medical_history="Asthma",
-        time_created=now,
-        time_updated=now,
-    )
-    db_session.add(patient)
-    db_session.commit()
+def _ensure_patient_api(client, headers, patient_id: str):
+    ensure_patient(client, headers, patient_id=patient_id)
 
 
 def test_case_create(client, db_session, token_manager):
     headers, _, _ = auth_headers(client, db_session, token_manager)
     pid = _uniq("pc")
-    _ensure_patient(db_session, pid)
+    _ensure_patient_api(client, headers, pid)
     cid = _uniq("c")
     cr = _create_case(client, headers, pid, cid)
     assert cr.status_code == 200
@@ -474,7 +450,7 @@ def test_case_create(client, db_session, token_manager):
 def test_case_list(client, db_session, token_manager):
     headers, _, _ = auth_headers(client, db_session, token_manager)
     pid = _uniq("plc")
-    _ensure_patient(db_session, pid)
+    _ensure_patient_api(client, headers, pid)
     for _ in range(2):
         cid = _uniq("lc")
         _create_case(client, headers, pid, cid)
@@ -486,7 +462,7 @@ def test_case_list(client, db_session, token_manager):
 def test_case_get(client, db_session, token_manager):
     headers, _, _ = auth_headers(client, db_session, token_manager)
     pid = _uniq("pgc")
-    _ensure_patient(db_session, pid)
+    _ensure_patient_api(client, headers, pid)
     cid = _uniq("gc")
     _create_case(client, headers, pid, cid)
     gt = client.get(f"/api/v1/cases/{cid}", headers=headers)
@@ -497,7 +473,7 @@ def test_case_get(client, db_session, token_manager):
 def test_case_update(client, db_session, token_manager):
     headers, _, _ = auth_headers(client, db_session, token_manager)
     pid = _uniq("puc")
-    _ensure_patient(db_session, pid)
+    _ensure_patient_api(client, headers, pid)
     cid = _uniq("uc")
     _create_case(client, headers, pid, cid)
     up = client.put(
@@ -510,7 +486,7 @@ def test_case_update(client, db_session, token_manager):
 def test_case_delete(client, db_session, token_manager):
     headers, _, _ = auth_headers(client, db_session, token_manager)
     pid = _uniq("pdc")
-    _ensure_patient(db_session, pid)
+    _ensure_patient_api(client, headers, pid)
     cid = _uniq("dc")
     _create_case(client, headers, pid, cid)
     dl = client.delete(f"/api/v1/cases/{cid}", headers=headers)
@@ -521,35 +497,8 @@ def test_case_delete(client, db_session, token_manager):
 #########################
 # History / Sessions
 #########################
-def _setup_session_dependencies(db_session):
-    now = _now_iso()
-    pid = _uniq("ps")
-    cid = _uniq("cs")
-    patient = Patient(
-        patient_id=pid,
-        name="Hist Pat",
-        age=50,
-        gender="M",
-        dob="1975-07-07",
-        height="175",
-        weight="75",
-        medical_history="None",
-        time_created=now,
-        time_updated=now,
-    )
-    case = Case(
-        case_id=cid,
-        patient_id=pid,
-        case_name="History Case",
-        description="History desc",
-        tags=["h"],
-        priority="low",
-        time_created=now,
-        time_updated=now,
-    )
-    db_session.add_all([patient, case])
-    db_session.commit()
-    return pid, cid
+def _setup_session_dependencies_api(client, headers):
+    return setup_session_dependencies(client, headers)
 
 
 def _create_session(client, headers, session_id: str, case_id: str, patient_id: str):
@@ -567,7 +516,7 @@ def _create_session(client, headers, session_id: str, case_id: str, patient_id: 
 
 def test_session_create(client, db_session, token_manager):
     headers, _, _ = auth_headers(client, db_session, token_manager)
-    pid, cid = _setup_session_dependencies(db_session)
+    pid, cid = _setup_session_dependencies_api(client, headers)
     sid = _uniq("s")
     cr = _create_session(client, headers, sid, cid, pid)
     assert cr.status_code == 200, cr.text
@@ -576,7 +525,7 @@ def test_session_create(client, db_session, token_manager):
 
 def test_session_update(client, db_session, token_manager):
     headers, _, _ = auth_headers(client, db_session, token_manager)
-    pid, cid = _setup_session_dependencies(db_session)
+    pid, cid = _setup_session_dependencies_api(client, headers)
     sid = _uniq("s")
     _create_session(client, headers, sid, cid, pid)
     ed = client.put(
@@ -590,7 +539,7 @@ def test_session_update(client, db_session, token_manager):
 
 def test_session_get_sessions(client, db_session, token_manager):
     headers, _, _ = auth_headers(client, db_session, token_manager)
-    pid, cid = _setup_session_dependencies(db_session)
+    pid, cid = _setup_session_dependencies_api(client, headers)
     sid = _uniq("s")
     _create_session(client, headers, sid, cid, pid)
     gs = client.get(
@@ -602,7 +551,7 @@ def test_session_get_sessions(client, db_session, token_manager):
 
 def test_session_get_messages(client, db_session, token_manager):
     headers, _, _ = auth_headers(client, db_session, token_manager)
-    pid, cid = _setup_session_dependencies(db_session)
+    pid, cid = _setup_session_dependencies_api(client, headers)
     sid = _uniq("s")
     _create_session(client, headers, sid, cid, pid)
     gm = client.get(f"/api/v1/history/messages/{sid}", headers=headers)
@@ -612,9 +561,91 @@ def test_session_get_messages(client, db_session, token_manager):
 
 def test_session_delete(client, db_session, token_manager):
     headers, _, _ = auth_headers(client, db_session, token_manager)
-    pid, cid = _setup_session_dependencies(db_session)
+    pid, cid = _setup_session_dependencies_api(client, headers)
     sid = _uniq("s")
     _create_session(client, headers, sid, cid, pid)
     dl = client.delete(f"/api/v1/history/session/{sid}", headers=headers)
     assert dl.status_code == 200
     assert "deleted successfully" in dl.json()["detail"]
+
+
+#########################
+# Chat Predict Endpoint
+#########################
+def _ensure_case_and_patient_api(client, headers, patient_id: str, case_id: str):
+    ensure_patient(client, headers, patient_id=patient_id)
+    ensure_case(client, headers, case_id=case_id, patient_id=patient_id)
+
+
+def test_chat_predict_debug_success(client, db_session, token_manager):
+    """Ensure chat predict returns mock response when debug=True and stores message."""
+    headers, _, _ = auth_headers(client, db_session, token_manager)
+    pid = _uniq("pchat")
+    cid = _uniq("cchat")
+    sid = _uniq("schat")
+    _ensure_case_and_patient_api(client, headers, pid, cid)
+
+    resp = client.post(
+        "/api/v1/chat/",
+        params={
+            "session_id": sid,
+            "case_id": cid,
+            "patient_id": pid,
+            "prompt": "Hello, how are you?",
+            "debug": True,  # critical: do not invoke external model
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 200, resp.text
+    data = resp.json()
+    assert "response" in data and "safety_score" in data
+    assert "mock response" in data["response"].lower()
+
+    hist = client.get(f"/api/v1/history/messages/{sid}", headers=headers)
+    assert hist.status_code == 200
+    assert len(hist.json()["conversations"]) >= 1
+
+
+def test_chat_predict_case_not_found(client, db_session, token_manager):
+    headers, _, _ = auth_headers(client, db_session, token_manager)
+    pid = _uniq("pchatnf")
+    # Intentionally create only patient
+    _ensure_case_and_patient_api(client, headers, pid, case_id=_uniq("dummy"))
+    missing_case = _uniq("missingcase")
+    sid = _uniq("schat2")
+    resp = client.post(
+        "/api/v1/chat/",
+        params={
+            "session_id": sid,
+            "case_id": missing_case,
+            "patient_id": pid,
+            "prompt": "Test prompt",
+            "debug": True,
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Case not found"
+
+
+def test_chat_predict_patient_not_found(client, db_session, token_manager):
+    headers, _, _ = auth_headers(client, db_session, token_manager)
+    existing_pid = _uniq("pchat3")
+    cid = _uniq("cchat3")
+    _ensure_case_and_patient_api(client, headers, existing_pid, cid)
+    # Use a different, non-existent patient id to trigger 404
+    missing_patient_id = _uniq("missingpat")
+    sid = _uniq("schat3")
+    resp = client.post(
+        "/api/v1/chat/",
+        params={
+            "session_id": sid,
+            "case_id": cid,
+            "patient_id": missing_patient_id,
+            "prompt": "Another prompt",
+            "debug": True,
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "Patient not found"
