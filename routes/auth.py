@@ -1,6 +1,6 @@
 import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import desc, or_
 from uuid import uuid4
 from controllers.auth import (
@@ -15,24 +15,20 @@ from models.token import Token
 from models.user import User
 from utils.token import get_hashed_password, verify_password
 from utils.state import State
+from schema.auth import RegisterRequest, LoginRequest, RefreshRequest
 
 router = APIRouter()
 
 
 @router.post("/register")
 async def register_user(
-    user_id: str = Query(str, description=""),
-    name: str = Query(None, description=""),
-    email: str = Query(str, description=""),
-    password: str = Query(str, description=""),
-    phone: str = Query(None, description=""),
-    role: str = Query("user", description=""),
+    req: RegisterRequest,
     db=Depends(get_db),
 ):
     try:
         user = (
             db.query(User)
-            .filter(or_(User.user_id == user_id, User.email == email))
+            .filter(or_(User.user_id == req.user_id, User.email == req.email))
             .first()
         )
         if user:
@@ -41,12 +37,12 @@ async def register_user(
                 status_code=400, detail="User with email already exists"
             )
         new_user = User(
-            user_id=user_id,
-            name=name,
-            email=email,
-            password=get_hashed_password(password),
-            phone=phone,
-            role=role,
+            user_id=req.user_id,
+            name=req.name,
+            email=req.email,
+            password=get_hashed_password(req.password),
+            phone=req.phone,
+            role=req.role,
             time_created=datetime.datetime.now(datetime.UTC).isoformat(),
             time_updated=datetime.datetime.now(datetime.UTC).isoformat(),
         )
@@ -65,17 +61,17 @@ async def register_user(
 
 @router.post("/login")
 async def login_user(
-    email: str = Query(str, description=""),
-    password: str = Query(str, description=""),
+    req: LoginRequest,
     db=Depends(get_db),
 ):
     try:
-        user = db.query(User).filter(User.email == email).first()
-        if not user or not verify_password(password, user.password):
+        user = db.query(User).filter(User.email == req.email).first()
+        if not user or not verify_password(req.password, user.password):
             State.logger.error("Invalid credentials")
             raise HTTPException(status_code=401, detail="Invalid credentials")
         access_token = create_access_token(subject=user.__dict__)
         refresh_token = create_refresh_token(subject=user.user_id)
+
         # Logout of previous session
         token = (
             db.query(Token)
@@ -115,15 +111,51 @@ async def login_user(
         )
 
 
+@router.post("/relogin")
+async def relogin_user(req: RefreshRequest, db=Depends(get_db)):
+    try:
+        payload = decodeJWT(req.refresh_token)
+        if not payload:
+            State.logger.error("Invalid refresh token")
+            raise HTTPException(status_code=401, detail="Invalid refresh token")
+        user_id = payload["sub"]
+        user = db.query(User).filter(User.user_id == user_id).first()
+        if not user:
+            State.logger.error("User not found")
+            raise HTTPException(status_code=404, detail="User not found")
+        new_access_token = create_access_token(subject=user.__dict__)
+        token = (
+            db.query(Token)
+            .filter_by(user_id=user_id, refresh_token=req.refresh_token, status=True)
+            .order_by(desc(Token.time_created))
+            .first()
+        )
+        if token:
+            token.access_token = new_access_token
+            token.time_updated = datetime.datetime.now(datetime.UTC).isoformat()
+            db.add(token)
+            db.commit()
+            db.refresh(token)
+        return {
+            "access_token": new_access_token,
+            "refresh_token": req.refresh_token,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        State.logger.error(f"An error occured while relogin: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"An error occured while relogin: {str(e)}"
+        )
+
+
 @router.post("/refresh")
-@token_required
 async def refresh_token(
-    refresh_token: str = Query(str, description=""),
-    dependencies=Depends(JWTBearer()),
+    req: RefreshRequest,
     db=Depends(get_db),
 ):
     try:
-        payload = decodeJWT(refresh_token)
+        payload = decodeJWT(req.refresh_token)
         if not payload:
             State.logger.error("Invalid refresh token")
             raise HTTPException(status_code=401, detail="Invalid refresh token")
@@ -136,7 +168,7 @@ async def refresh_token(
         new_refresh_token = create_refresh_token(subject=user.user_id)
         token = (
             db.query(Token)
-            .filter_by(user_id=user_id, access_token=dependencies, status=True)
+            .filter_by(user_id=user_id, refresh_token=req.refresh_token, status=True)
             .order_by(desc(Token.time_created))
             .first()
         )

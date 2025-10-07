@@ -66,6 +66,26 @@ def edit_session(session_id: str, title: str, db: Session) -> str:
             detail=f"An error occured while editing session: {str(e)}",
         )
 
+def list_sessions_for_case(case_id: str, patient_id: str, db: Session):
+    """
+    List all chat sessions for a specific case and patient.
+
+    Returns:
+        List[ChatSession]: List of all chat sessions for the case and patient.
+    """
+    try:
+        sessions = (
+            db.query(ChatSession)
+            .filter(ChatSession.case_id == case_id, ChatSession.patient_id == patient_id)
+            .all()
+        )
+        return sessions
+    except Exception as e:
+        State.logger.error(f"An error occured while listing sessions: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occured while listing sessions: {str(e)}",
+        )
 
 def add_ai_response(
     case_id: str,

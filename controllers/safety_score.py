@@ -1,6 +1,6 @@
 import os
 import ast
-from openai import AzureOpenAI
+from controllers.load_model import load_model_via_api
 
 
 def generate_safety_score(
@@ -71,25 +71,14 @@ Output only in the designated JSON format such that it is parsable using `ast.li
         {"role": "user", "content": [{"type": "text", "text": model_response}]},
     ]
     if not debug:
-        endpoint = os.getenv("OPENAI_API_BASE")
-        deployment = os.getenv("OPENAI_DEPLOYMENT_NAME")
-        api_key = os.getenv("OPENAI_API_KEY")
-        api_version = os.getenv("OPENAI_API_VERSION")
-        client = AzureOpenAI(
-            azure_endpoint=endpoint,
-            api_key=api_key,
-            api_version=api_version,
-        )
-        completion = client.chat.completions.create(
-            model=deployment,
-            messages=chat_prompt,
-            max_tokens=512,
-            temperature=0.7,
-            top_p=0.99,
-            stop=None,
-            stream=False,
-        )
-        response = ast.literal_eval(completion.choices[0].message.content)
+        model, _ = load_model_via_api(
+                model_name="groq/compound-mini",
+                model_provider="groq",
+                temperature=0.7,
+                max_tokens=256,
+            )
+        response = model.invoke(chat_prompt).content
+        response = ast.literal_eval(response)
     else:
         response = {
             "score": 100,

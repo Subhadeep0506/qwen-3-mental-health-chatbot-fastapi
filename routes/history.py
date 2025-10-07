@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from database.database import get_db
 from models.session_message import SessionMessages
 from models.session import ChatSession
-from controllers.message import get_chat_history, create_session, edit_session
+from controllers.message import get_chat_history, create_session, edit_session, list_sessions_for_case
 from utils.state import State
 from controllers.auth import token_required, JWTBearer
 
@@ -77,14 +77,15 @@ async def edit_session_title(
 
 @router.get("/sessions")
 @token_required
-async def get_sessions(
-    session_id: str,
+async def get_sessions_for_case(
+    case_id: str = Query(..., description="Case id for fetching session."),
+    patient_id: str = Query(..., description="Patient id for fetching session."),
     dependencies=Depends(JWTBearer()),
     db=Depends(get_db),
 ):
     try:
-        conversations = get_chat_history(session_id, db=db)
-        return {"conversations": conversations}
+        sessions = list_sessions_for_case(case_id=case_id, patient_id=patient_id, db=db)
+        return {"sessions": sessions}
     except Exception as e:
         State.logger.error(f"An error occured while fetching history: {str(e)}")
         raise HTTPException(
