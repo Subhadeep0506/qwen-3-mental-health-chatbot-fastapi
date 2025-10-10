@@ -5,5 +5,5 @@ WORKDIR /app
 #     && rm -rf /var/lib/apt/lists/*
 RUN pip install --upgrade pip setuptools --no-cache-dir
 RUN pip install --no-cache-dir -r requirements.txt
-EXPOSE 8089 5432
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8089"]
+EXPOSE 8080 5432
+CMD ["uvicorn", "main:app", "--port", "8080"]

@@ -35,7 +35,7 @@ origins = os.getenv("ORIGINS")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=true,
+    allow_credentials=True,
     allow_origins=origins.split(",") if origins else ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
