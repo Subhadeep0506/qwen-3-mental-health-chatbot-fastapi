@@ -1,4 +1,4 @@
-from sqlalchemy import JSON, Column, ForeignKey, String, Boolean
+from sqlalchemy import JSON, Column, ForeignKey, String, Boolean, Integer
 from sqlalchemy.orm import relationship
 
 from database.database import Base, engine
@@ -24,6 +24,7 @@ class SessionMessages(Base):
     )
     feedback = Column(String)
     like = Column(Boolean)
+    stars = Column(Integer)
     content = Column(JSON, nullable=False)
     safety = Column(JSON, nullable=False)
     feedback = Column(String)
