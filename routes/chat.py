@@ -112,7 +112,7 @@ async def predict(
 @router.post("/like-message/{message_id}")
 @token_required
 async def like_ai_message_(
-    message_id: int,
+    message_id: str,
     like: str = Query(..., description="Like (true) or dislike (false) the message"),
     dependencies=Depends(JWTBearer()),
     db=Depends(get_db),
@@ -132,36 +132,10 @@ async def like_ai_message_(
         )
 
 
-@router.post("/submit-feedback/{message_id}")
-@token_required
-async def submit_feedback_(
-    message_id: int,
-    feedback: str,
-    stars: int = Query(None, description="Star rating from 1 to 5"),
-    dependencies=Depends(JWTBearer()),
-    db=Depends(get_db),
-):
-    try:
-        res = submit_feedback(
-            message_id=message_id, feedback=feedback, stars=stars, db=db
-        )
-        if res:
-            return res
-        return {"detail": "Message not found"}
-    except HTTPException:
-        raise
-    except Exception as e:
-        State.logger.error(f"An error occured while submitting feedback: {str(e)}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"An error occured while submitting feedback: {str(e)}",
-        )
-
-
 @router.put("/edit-feedback/{message_id}")
 @token_required
 async def edit_feedback_(
-    message_id: int,
+    message_id: str,
     feedback: str = Query(None, description="Updated feedback text"),
     stars: int = Query(None, description="Updated star rating from 1 to 5"),
     dependencies=Depends(JWTBearer()),
