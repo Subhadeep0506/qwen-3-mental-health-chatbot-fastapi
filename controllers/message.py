@@ -203,7 +203,6 @@ def get_chat_history(session_id: str, db: Session):
                 .filter(
                     SessionMessages.session_id == session_id,
                 )
-                .order_by(SessionMessages.timestamp.asc())
                 .all()
             )
             history = [
@@ -217,11 +216,10 @@ def get_chat_history(session_id: str, db: Session):
                     "like": msg.like,
                     "feedback": msg.feedback,
                     "stars": msg.stars,
-                    "timestamp": datetime.strptime(msg.timestamp, "%Y-%m-%d %H:%M:%S"),
+                    "timestamp": msg.timestamp,
                 }
                 for msg in history
             ]
-            history.sort(key=lambda x: x["timestamp"])
             return history
         session_history = [msg for msg in history if msg["session_id"] == session_id]
         return session_history
