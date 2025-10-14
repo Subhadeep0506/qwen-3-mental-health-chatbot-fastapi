@@ -177,7 +177,7 @@ def add_ai_response(
                 "safety": safety,
             }
         )
-        return history
+        return new_message
     except Exception as e:
         State.logger.error(f"An error occured while adding AI response: {str(e)}")
         raise HTTPException(
@@ -208,9 +208,15 @@ def get_chat_history(session_id: str, db: Session):
             )
             history = [
                 {
+                    "message_id": msg.message_id,
+                    "case_id": msg.case_id,
+                    "patient_id": msg.patient_id,
                     "session_id": msg.session_id,
                     "content": msg.content,
                     "safety": msg.safety,
+                    "like": msg.like,
+                    "feedback": msg.feedback,
+                    "stars": msg.stars,
                     "timestamp": datetime.strptime(msg.timestamp, "%Y-%m-%d %H:%M:%S"),
                 }
                 for msg in history

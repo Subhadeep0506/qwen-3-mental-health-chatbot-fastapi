@@ -89,7 +89,7 @@ async def predict(
             debug=debug,
         )
         safety_score = generate_safety_score(response, debug=debug)
-        history = add_ai_response(
+        new_message = add_ai_response(
             case_id=case_id,
             patient_id=patient_id,
             session_id=session_id,
@@ -98,7 +98,7 @@ async def predict(
             history=history,
             db=db,
         )
-        return {"response": response, "safety_score": safety_score}
+        return {**new_message.__dict__}
     except HTTPException:
         raise
     except Exception as e:
