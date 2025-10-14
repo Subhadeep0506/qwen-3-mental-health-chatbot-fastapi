@@ -7,7 +7,13 @@ from controllers.generate_response import generate_response
 from controllers.safety_score import generate_safety_score
 from database.database import get_db
 from utils.file_processor import convert_image_to_base64, convert_pdf_to_images
-from controllers.message import add_ai_response, get_chat_history
+from controllers.message import (
+    add_ai_response,
+    edit_feedback,
+    get_chat_history,
+    like_ai_message,
+    submit_feedback,
+)
 from models.cases import Case
 from models.patients import Patient
 from utils.state import State
@@ -100,4 +106,79 @@ async def predict(
         raise HTTPException(
             status_code=500,
             detail=f"An error occured while generating response: {str(e)}",
+        )
+
+
+@router.post("/like-message/{message_id}")
+@token_required
+async def like_ai_message_(
+    message_id: int,
+    like: bool = Query(..., description="Like (true) or dislike (false) the message"),
+    dependencies=Depends(JWTBearer()),
+    db=Depends(get_db),
+):
+    try:
+        res = like_ai_message(message_id=message_id, like=like, db=db)
+        if res:
+            return res
+        return {"detail": "Message not found"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        State.logger.error(f"An error occured while liking message: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occured while liking message: {str(e)}",
+        )
+
+
+@router.post("/submit-feedback/{message_id}")
+@token_required
+async def submit_feedback_(
+    message_id: int,
+    feedback: str,
+    stars: int = Query(None, description="Star rating from 1 to 5"),
+    dependencies=Depends(JWTBearer()),
+    db=Depends(get_db),
+):
+    try:
+        res = submit_feedback(
+            message_id=message_id, feedback=feedback, stars=stars, db=db
+        )
+        if res:
+            return res
+        return {"detail": "Message not found"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        State.logger.error(f"An error occured while submitting feedback: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occured while submitting feedback: {str(e)}",
+        )
+
+
+@router.put("/edit-feedback/{message_id}")
+@token_required
+async def edit_feedback_(
+    message_id: int,
+    feedback: str = Query(None, description="Updated feedback text"),
+    stars: int = Query(None, description="Updated star rating from 1 to 5"),
+    dependencies=Depends(JWTBearer()),
+    db=Depends(get_db),
+):
+    try:
+        res = edit_feedback(
+            message_id=message_id, feedback=feedback, stars=stars, db=db
+        )
+        if res:
+            return res
+        return {"detail": "Message not found"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        State.logger.error(f"An error occured while editing feedback: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occured while editing feedback: {str(e)}",
         )

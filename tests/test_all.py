@@ -53,7 +53,7 @@ def engine(test_db_url):
     )
     Base.metadata.create_all(bind=engine_)
     yield engine_
-    # Base.metadata.drop_all(bind=engine_)
+    Base.metadata.drop_all(bind=engine_)
 
 
 @pytest.fixture(scope="function")
@@ -106,7 +106,7 @@ def ensure_user(
         "password": password,
         "role": role,
     }
-    r = client.post("/api/v1/auth/register", params=params)
+    r = client.post("/api/v1/auth/register", json=params)
     # 200 success, 400 duplicate
     assert r.status_code in (200, 400), r.text
     return r
@@ -153,7 +153,7 @@ def setup_session_dependencies(client, headers):
 
 def login(client, email="user@example.com", password="password123"):
     resp = client.post(
-        "/api/v1/auth/login", params={"email": email, "password": password}
+        "/api/v1/auth/login", json={"email": email, "password": password}
     )
     assert resp.status_code == 200, resp.text
     data = resp.json()
@@ -174,12 +174,12 @@ class TokenManager:
             return self._cache[email]
         # Try login; if fails register then login
         lr = client.post(
-            "/api/v1/auth/login", params={"email": email, "password": password}
+            "/api/v1/auth/login", json={"email": email, "password": password}
         )
         if lr.status_code != 200:
             ensure_user(client, email=email, password=password)
             lr = client.post(
-                "/api/v1/auth/login", params={"email": email, "password": password}
+                "/api/v1/auth/login", json={"email": email, "password": password}
             )
         assert lr.status_code == 200, lr.text
         data = lr.json()
@@ -232,45 +232,45 @@ def auth_headers(
 #########################
 def test_auth_register_success(client):
     email = f"{uuid.uuid4().hex[:8]}@example.com"
-    params = {
+    payload = {
         "user_id": email.split("@")[0],
         "name": "Alice",
         "email": email,
         "password": "secretpass",
         "role": "user",
     }
-    r = client.post("/api/v1/auth/register", params=params)
+    r = client.post("/api/v1/auth/register", json=payload)
     assert r.status_code == 200, r.text
     assert r.json()["message"] == "User created successfully"
 
 
 def test_auth_register_duplicate(client):
     email = f"{uuid.uuid4().hex[:8]}@example.com"
-    params = {
+    payload = {
         "user_id": email.split("@")[0],
         "name": "Dup",
         "email": email,
         "password": "secretpass",
         "role": "user",
     }
-    r1 = client.post("/api/v1/auth/register", params=params)
+    r1 = client.post("/api/v1/auth/register", json=payload)
     assert r1.status_code == 200
-    r2 = client.post("/api/v1/auth/register", params=params)
+    r2 = client.post("/api/v1/auth/register", json=payload)
     assert r2.status_code == 400
 
 
 def test_auth_login_success(client):
     email = f"{uuid.uuid4().hex[:8]}@example.com"
-    params = {
+    payload = {
         "user_id": email.split("@")[0],
         "name": "Login User",
         "email": email,
         "password": "secretpass",
         "role": "user",
     }
-    client.post("/api/v1/auth/register", params=params)
+    client.post("/api/v1/auth/register", json=payload)
     resp = client.post(
-        "/api/v1/auth/login", params={"email": email, "password": "secretpass"}
+        "/api/v1/auth/login", json={"email": email, "password": "secretpass"}
     )
     assert resp.status_code == 200, resp.text
     data = resp.json()
@@ -279,17 +279,15 @@ def test_auth_login_success(client):
 
 def test_auth_login_invalid_password(client):
     email = f"{uuid.uuid4().hex[:8]}@example.com"
-    params = {
+    payload = {
         "user_id": email.split("@")[0],
         "name": "Bad Pass",
         "email": email,
         "password": "secretpass",
         "role": "user",
     }
-    client.post("/api/v1/auth/register", params=params)
-    bad = client.post(
-        "/api/v1/auth/login", params={"email": email, "password": "wrong"}
-    )
+    client.post("/api/v1/auth/register", json=payload)
+    bad = client.post("/api/v1/auth/login", json={"email": email, "password": "wrong"})
     assert bad.status_code == 401
 
 
@@ -301,6 +299,30 @@ def test_auth_logout(client, db_session, token_manager):
     token_manager.invalidate(email)
     assert out.status_code == 200
     assert out.json()["message"].startswith("User logged out")
+
+
+def test_auth_refresh_token(client, db_session, token_manager):
+    email = f"{uuid.uuid4().hex[:8]}@example.com"
+    payload = {
+        "user_id": email.split("@")[0],
+        "name": "Refresh User",
+        "email": email,
+        "password": "secretpass",
+        "role": "user",
+    }
+    client.post("/api/v1/auth/register", json=payload)
+    login_resp = client.post(
+        "/api/v1/auth/login", json={"email": email, "password": "secretpass"}
+    )
+    assert login_resp.status_code == 200, login_resp.text
+    refresh_token = login_resp.json()["refresh_token"]
+
+    refresh_resp = client.post(
+        "/api/v1/auth/relogin", json={"refresh_token": refresh_token}
+    )
+    assert refresh_resp.status_code == 200, refresh_resp.text
+    data = refresh_resp.json()
+    assert "access_token" in data and "refresh_token" in data
 
 
 #########################
@@ -543,7 +565,9 @@ def test_session_get_sessions(client, db_session, token_manager):
     sid = _uniq("s")
     _create_session(client, headers, sid, cid, pid)
     gs = client.get(
-        "/api/v1/history/sessions", params={"session_id": sid}, headers=headers
+        "/api/v1/history/sessions",
+        params={"case_id": cid, "session_id": sid},
+        headers=headers,
     )
     assert gs.status_code == 200
     assert isinstance(gs.json()["conversations"], list)
@@ -649,3 +673,131 @@ def test_chat_predict_patient_not_found(client, db_session, token_manager):
     )
     assert resp.status_code == 404
     assert resp.json()["detail"] == "Patient not found"
+
+
+#########################
+# New Endpoints Tests
+#########################
+
+
+def test_delete_session(client, db_session, token_manager):
+    headers, _, _ = auth_headers(client, db_session, token_manager)
+    pid, cid = _setup_session_dependencies_api(client, headers)
+    sid = _uniq("s")
+    _create_session(client, headers, sid, cid, pid)
+    dl = client.delete(f"/api/v1/history/session/{sid}", headers=headers)
+    assert dl.status_code == 200
+    assert "deleted successfully" in dl.json()["detail"]
+
+
+def test_like_ai_message(client, db_session, token_manager):
+    headers, _, _ = auth_headers(client, db_session, token_manager)
+    pid, cid = _setup_session_dependencies_api(client, headers)
+    sid = _uniq("s")
+    _create_session(client, headers, sid, cid, pid)
+    # Create a message by calling the chat endpoint in debug mode (which stores a message)
+    r = client.post(
+        "/api/v1/chat/",
+        params={
+            "session_id": sid,
+            "case_id": cid,
+            "patient_id": pid,
+            "prompt": "Hello there",
+            "debug": True,
+        },
+        headers=headers,
+    )
+    assert r.status_code == 200, r.text
+
+    # Read history to get the message_id
+    hist = client.get(f"/api/v1/history/messages/{sid}", headers=headers)
+    assert hist.status_code == 200, hist.text
+    conv = hist.json().get("conversations")
+    assert isinstance(conv, list) and len(conv) >= 1
+    message_id = conv[-1].get("message_id")
+
+    like = client.post(
+        f"/api/v1/chat/like-message/{message_id}",
+        params={"like": True},
+        headers=headers,
+    )
+    assert like.status_code == 200, like.text
+    assert like.json().get("detail") == "Liked message."
+
+
+def test_submit_feedback(client, db_session, token_manager):
+    headers, _, _ = auth_headers(client, db_session, token_manager)
+    pid, cid = _setup_session_dependencies_api(client, headers)
+    sid = _uniq("s")
+    _create_session(client, headers, sid, cid, pid)
+    # Create a message by calling the chat endpoint in debug mode
+    r = client.post(
+        "/api/v1/chat/",
+        params={
+            "session_id": sid,
+            "case_id": cid,
+            "patient_id": pid,
+            "prompt": "Please help",
+            "debug": True,
+        },
+        headers=headers,
+    )
+    assert r.status_code == 200, r.text
+
+    hist = client.get(f"/api/v1/history/messages/{sid}", headers=headers)
+    assert hist.status_code == 200, hist.text
+    conv = hist.json().get("conversations")
+    assert isinstance(conv, list) and len(conv) >= 1
+    message_id = conv[-1].get("message_id")
+
+    fb = client.post(
+        f"/api/v1/chat/submit-feedback/{message_id}",
+        params={"feedback": "Great session!", "stars": 5},
+        headers=headers,
+    )
+    assert fb.status_code == 200, fb.text
+    assert fb.json().get("detail") == "Feedback submitted."
+
+
+def test_edit_feedback(client, db_session, token_manager):
+    headers, _, _ = auth_headers(client, db_session, token_manager)
+    pid, cid = _setup_session_dependencies_api(client, headers)
+    sid = _uniq("s")
+    _create_session(client, headers, sid, cid, pid)
+    # Create a message by calling the chat endpoint in debug mode
+    r = client.post(
+        "/api/v1/chat/",
+        params={
+            "session_id": sid,
+            "case_id": cid,
+            "patient_id": pid,
+            "prompt": "original",
+            "debug": True,
+        },
+        headers=headers,
+    )
+    assert r.status_code == 200, r.text
+
+    hist = client.get(f"/api/v1/history/messages/{sid}", headers=headers)
+    assert hist.status_code == 200, hist.text
+    conv = hist.json().get("conversations")
+    assert isinstance(conv, list) and len(conv) >= 1
+    message_id = conv[-1].get("message_id")
+
+    # Submit initial feedback via endpoint
+    sf = client.post(
+        f"/api/v1/chat/submit-feedback/{message_id}",
+        params={"feedback": "Great session!", "stars": 5},
+        headers=headers,
+    )
+    assert sf.status_code == 200, sf.text
+
+    # Edit the feedback via the endpoint (PUT expects feedback and stars as query params)
+    edit = client.put(
+        f"/api/v1/chat/edit-feedback/{message_id}",
+        params={"feedback": "Updated feedback.", "stars": 4},
+        headers=headers,
+    )
+    assert edit.status_code == 200, edit.text
+    # Controller returns the same message string for submit/edit
+    assert edit.json().get("detail") == "Feedback submitted."

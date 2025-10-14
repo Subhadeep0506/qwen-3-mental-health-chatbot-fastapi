@@ -3,7 +3,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from database.database import get_db
 from models.session_message import SessionMessages
 from models.session import ChatSession
-from controllers.message import get_chat_history, create_session, edit_session, list_sessions_for_case
+from controllers.message import (
+    get_chat_history,
+    create_session,
+    edit_session,
+    list_sessions_for_case,
+    delete_session,
+)
 from utils.state import State
 from controllers.auth import token_required, JWTBearer
 
@@ -95,31 +101,14 @@ async def get_sessions_for_case(
 
 @router.delete("/session/{session_id}")
 @token_required
-async def delete_session(
+async def delete_session_(
     session_id: str,
     dependencies=Depends(JWTBearer()),
     db=Depends(get_db),
 ):
     try:
-        # Check if session exists
-        session = (
-            db.query(ChatSession).filter(ChatSession.session_id == session_id).first()
-        )
-
-        if not session:
-            raise HTTPException(
-                status_code=404, detail=f"Session {session_id} not found"
-            )
-
-        # Delete the ChatSession - this will cascade delete all related SessionMessages
-        db.delete(session)
-        db.commit()
-
-        return {
-            "detail": f"Session {session_id} and all its messages deleted successfully"
-        }
+        return delete_session(session_id=session_id, db=db)
     except HTTPException:
-        # Re-raise HTTP exceptions (like 404)
         raise
     except Exception as e:
         State.logger.error(f"An error occured while deleting session: {str(e)}")

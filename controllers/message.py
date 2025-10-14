@@ -66,6 +66,7 @@ def edit_session(session_id: str, title: str, db: Session) -> str:
             detail=f"An error occured while editing session: {str(e)}",
         )
 
+
 def list_sessions_for_case(case_id: str, patient_id: str, db: Session):
     """
     List all chat sessions for a specific case and patient.
@@ -76,7 +77,9 @@ def list_sessions_for_case(case_id: str, patient_id: str, db: Session):
     try:
         sessions = (
             db.query(ChatSession)
-            .filter(ChatSession.case_id == case_id, ChatSession.patient_id == patient_id)
+            .filter(
+                ChatSession.case_id == case_id, ChatSession.patient_id == patient_id
+            )
             .all()
         )
         return sessions
@@ -86,6 +89,38 @@ def list_sessions_for_case(case_id: str, patient_id: str, db: Session):
             status_code=500,
             detail=f"An error occured while listing sessions: {str(e)}",
         )
+
+
+def delete_session(session_id: str, db: Session):
+    """
+    Delete a chat session and its associated messages.
+
+    Args:
+        session_id (str): Unique identifier for the chat session.
+    """
+    try:
+        session = (
+            db.query(ChatSession).filter(ChatSession.session_id == session_id).first()
+        )
+
+        if not session:
+            raise HTTPException(
+                status_code=404, detail=f"Session {session_id} not found"
+            )
+
+        db.delete(session)
+        db.commit()
+
+        return {
+            "detail": f"Session {session_id} and all its messages deleted successfully"
+        }
+    except Exception as e:
+        State.logger.error(f"An error occured while deleting session: {str(e)}")
+        db.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"An error occured while deleting session: {str(e)}"
+        )
+
 
 def add_ai_response(
     case_id: str,
@@ -130,6 +165,7 @@ def add_ai_response(
                 patient_id=patient_id,
                 content=content,
                 safety=safety,
+                timestamp=datetime.utcnow(),
             )
             db.add(new_message)
             db.commit()
@@ -164,7 +200,10 @@ def get_chat_history(session_id: str, db: Session):
         if db:
             history = (
                 db.query(SessionMessages)
-                .filter(SessionMessages.session_id == session_id)
+                .filter(
+                    SessionMessages.session_id == session_id,
+                )
+                .order_by(SessionMessages.timestamp.asc())
                 .all()
             )
             history = [
@@ -172,9 +211,11 @@ def get_chat_history(session_id: str, db: Session):
                     "session_id": msg.session_id,
                     "content": msg.content,
                     "safety": msg.safety,
+                    "timestamp": datetime.strptime(msg.timestamp, "%Y-%m-%d %H:%M:%S"),
                 }
                 for msg in history
             ]
+            history.sort(key=lambda x: x["timestamp"])
             return history
         session_history = [msg for msg in history if msg["session_id"] == session_id]
         return session_history
@@ -183,4 +224,97 @@ def get_chat_history(session_id: str, db: Session):
         raise HTTPException(
             status_code=500,
             detail=f"An error occured while getting chat history: {str(e)}",
+        )
+
+
+def like_ai_message(message_id: str, like: str, db: Session):
+    """
+    Like or dislike an AI message.
+
+    Args:
+        message_id (str): Unique identifier for the message.
+        like (str): "like" or "dislike".
+    """
+    try:
+        if db:
+            message = (
+                db.query(SessionMessages)
+                .filter(SessionMessages.message_id == message_id)
+                .first()
+            )
+            if message:
+                message.like = like
+                db.commit()
+                db.refresh(message)
+            else:
+                raise HTTPException(status_code=404, detail="Message not found")
+            return {"detail": "Liked message."}
+        return None
+    except Exception as e:
+        State.logger.error(f"An error occured while liking message: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occured while liking message: {str(e)}",
+        )
+
+
+def submit_feedback(message_id: str, feedback: str, stars: int, db: Session):
+    """
+    Submit feedback for an AI message.
+
+    Args:
+        message_id (str): Unique identifier for the message.
+        feedback (str): Feedback text.
+        stars (int): Star rating (1-5).
+    """
+    try:
+        if db:
+            message = (
+                db.query(SessionMessages)
+                .filter(SessionMessages.message_id == message_id)
+                .first()
+            )
+            if message:
+                message.feedback = feedback if feedback else message.feedback
+                message.stars = stars if stars else message.stars
+                db.commit()
+                db.refresh(message)
+            return {"detail": "Feedback submitted."}
+        return None
+    except Exception as e:
+        State.logger.error(f"An error occured while submitting feedback: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occured while submitting feedback: {str(e)}",
+        )
+
+
+def edit_feedback(message_id: str, feedback: str, stars: int, db: Session):
+    """
+    Edit feedback for an AI message.
+
+    Args:
+        message_id (str): Unique identifier for the message.
+        feedback (str): Feedback text.
+        stars (int): Star rating (1-5).
+    """
+    try:
+        if db:
+            message = (
+                db.query(SessionMessages)
+                .filter(SessionMessages.message_id == message_id)
+                .first()
+            )
+            if message:
+                message.feedback = feedback if feedback else message.feedback
+                message.stars = stars if stars else message.stars
+                db.commit()
+                db.refresh(message)
+            return {"detail": "Feedback submitted."}
+        return None
+    except Exception as e:
+        State.logger.error(f"An error occured while editing feedback: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"An error occured while editing feedback: {str(e)}",
         )
