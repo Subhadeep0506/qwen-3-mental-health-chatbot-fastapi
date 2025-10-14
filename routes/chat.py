@@ -113,7 +113,7 @@ async def predict(
 @token_required
 async def like_ai_message_(
     message_id: int,
-    like: bool = Query(..., description="Like (true) or dislike (false) the message"),
+    like: str = Query(..., description="Like (true) or dislike (false) the message"),
     dependencies=Depends(JWTBearer()),
     db=Depends(get_db),
 ):
