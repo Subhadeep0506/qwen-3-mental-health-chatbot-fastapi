@@ -30,7 +30,6 @@ class Case(Base):
         "ChatSession",
         back_populates="case",
         cascade="all, delete-orphan",
-        passive_deletes=True,
     )
 
     # Also keep messages that reference this case directly
@@ -38,5 +37,4 @@ class Case(Base):
         "SessionMessages",
         back_populates="case",
         cascade="all, delete-orphan",
-        passive_deletes=True,
     )

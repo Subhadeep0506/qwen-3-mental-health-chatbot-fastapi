@@ -23,7 +23,6 @@ class Patient(Base):
         "Case",
         back_populates="patient",
         cascade="all, delete-orphan",
-        passive_deletes=True,
     )
 
     # One-to-many: Patient -> SessionMessages (direct messages that reference patient)
@@ -31,5 +30,4 @@ class Patient(Base):
         "SessionMessages",
         back_populates="patient",
         cascade="all, delete-orphan",
-        passive_deletes=True,
     )

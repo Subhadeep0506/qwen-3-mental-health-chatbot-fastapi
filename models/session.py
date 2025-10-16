@@ -29,7 +29,6 @@ class ChatSession(Base):
         "SessionMessages",
         back_populates="session",
         cascade="all, delete-orphan",
-        passive_deletes=True,
     )
 
     # Relationship back to Case and Patient
