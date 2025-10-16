@@ -30,4 +30,4 @@ class SessionMessages(Base):
     timestamp = Column(String, nullable=False, default=f"{datetime.datetime.utcnow()}")
 
     # Back reference to ChatSession
-    session = relationship("ChatSession", back_populates="messages")
+    session = relationship("ChatSession", back_populates="session_messages", cascade="all, delete")

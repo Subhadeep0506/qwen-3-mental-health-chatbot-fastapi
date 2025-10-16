@@ -26,5 +26,5 @@ class ChatSession(Base):
 
     # Relationship with cascade delete
     messages = relationship(
-        "SessionMessages", back_populates="session", cascade="all, delete-orphan"
+        "SessionMessages", back_populates="chat_session", cascade="all, delete"
     )
