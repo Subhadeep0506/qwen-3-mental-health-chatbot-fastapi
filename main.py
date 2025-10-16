@@ -7,9 +7,10 @@ from contextlib import asynccontextmanager
 
 import logfire
 from fastapi import FastAPI, Depends
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-from database.database import Base, engine
+from database.database import Base, engine, DatabaseConnectionError
 from routes import auth, cases, chat, history, patient, user
 from utils.state import State
 
@@ -64,3 +65,25 @@ app.include_router(auth.router, prefix="/api/v1/auth")
 @app.get("/")
 async def root():
     return {"message": "Welcome to the Qwen-2.5-VL API"}
+
+
+@app.exception_handler(DatabaseConnectionError)
+async def db_connection_exception_handler(request, exc: DatabaseConnectionError):
+    # Use the global logger from state if possible, otherwise fallback
+    try:
+        from utils.state import State
+
+        logger = State().logger
+        logger.error("Database connection error: %s", exc)
+    except Exception:
+        import logging
+
+        logging.getLogger("app").exception("Database connection error: %s", exc)
+
+    return JSONResponse(
+        status_code=503,
+        content={
+            "detail": "Database connection error. Please try again later.",
+            "error": str(exc),
+        },
+    )

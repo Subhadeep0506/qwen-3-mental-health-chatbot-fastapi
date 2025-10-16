@@ -1,7 +1,7 @@
 from sqlalchemy import JSON, Column, ForeignKey, String
 from sqlalchemy.orm import relationship
 
-from database.database import Base, engine
+from database.database import Base
 from models.cases import Case
 from models.patients import Patient
 
@@ -13,18 +13,25 @@ class ChatSession(Base):
     title = Column(String)
     case_id = Column(
         String,
-        ForeignKey(Case.case_id),
+        ForeignKey("cases.case_id", ondelete="CASCADE"),
         nullable=False,
     )
     patient_id = Column(
         String,
-        ForeignKey(Patient.patient_id),
+        ForeignKey("patients.patient_id", ondelete="CASCADE"),
         nullable=False,
     )
     time_created = Column(String)
     time_updated = Column(String)
 
-    # Relationship with cascade delete
+    # Relationship with cascade delete (ORM-level)
     messages = relationship(
-        "SessionMessages", back_populates="chat_session", cascade="all, delete"
+        "SessionMessages",
+        back_populates="chat_session",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
+
+    # Relationship back to Case and Patient
+    case = relationship("Case", back_populates="chat_sessions")
+    patient = relationship("Patient")

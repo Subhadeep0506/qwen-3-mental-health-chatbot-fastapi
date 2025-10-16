@@ -1,7 +1,7 @@
 from sqlalchemy import JSON, Column, ForeignKey, String, Boolean, Integer
 from sqlalchemy.orm import relationship
 import datetime
-from database.database import Base, engine
+from database.database import Base
 from models.cases import Case
 from models.patients import Patient
 from models.session import ChatSession
@@ -11,15 +11,19 @@ class SessionMessages(Base):
     __tablename__ = "session_messages"
 
     message_id = Column(String, primary_key=True, nullable=False, index=True)
-    session_id = Column(String, ForeignKey(ChatSession.session_id), nullable=False)
+    session_id = Column(
+        String,
+        ForeignKey("chat_session.session_id", ondelete="CASCADE"),
+        nullable=False,
+    )
     case_id = Column(
         String,
-        ForeignKey(Case.case_id),
+        ForeignKey("cases.case_id", ondelete="CASCADE"),
         nullable=False,
     )
     patient_id = Column(
         String,
-        ForeignKey(Patient.patient_id),
+        ForeignKey("patients.patient_id", ondelete="CASCADE"),
         nullable=False,
     )
     feedback = Column(String, default=None)
@@ -29,5 +33,7 @@ class SessionMessages(Base):
     safety = Column(JSON, nullable=False)
     timestamp = Column(String, nullable=False, default=f"{datetime.datetime.utcnow()}")
 
-    # Back reference to ChatSession
-    session = relationship("ChatSession", back_populates="session_messages", cascade="all, delete")
+    # Relationships back to parents
+    session = relationship("ChatSession", back_populates="messages")
+    case = relationship("Case", back_populates="session_messages")
+    patient = relationship("Patient", back_populates="session_messages")

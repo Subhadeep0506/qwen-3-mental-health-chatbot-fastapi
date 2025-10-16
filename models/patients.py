@@ -1,7 +1,7 @@
 from sqlalchemy import Numeric, Column, Integer, String
 from sqlalchemy.orm import relationship
 
-from database.database import Base, engine
+from database.database import Base
 
 
 class Patient(Base):
@@ -18,7 +18,18 @@ class Patient(Base):
     time_created = Column(String, nullable=True)
     time_updated = Column(String, nullable=True)
 
-    cases = relationship("Case", backref="patients", cascade="all, delete")
-    chat_histories = relationship(
-        "SessionMessages", backref="patients", cascade="all, delete"
+    # One-to-many: Patient -> Case
+    cases = relationship(
+        "Case",
+        back_populates="patient",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+    # One-to-many: Patient -> SessionMessages (direct messages that reference patient)
+    session_messages = relationship(
+        "SessionMessages",
+        back_populates="patient",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
     )
